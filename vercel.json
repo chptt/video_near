@@ -1,0 +1,40 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install --legacy-peer-deps",
+  "headers": [
+    {
+      "source": "/watch/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self'; frame-src https://www.youtube.com https://youtube.com;"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    }
+  ],
+  "rewrites": [],
+  "regions": ["iad1"]
+}

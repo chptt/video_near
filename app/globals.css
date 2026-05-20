@@ -1,0 +1,276 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Variables ─────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 180 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 270 100% 50%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 180 100% 50%;
+    --radius: 0.75rem;
+  }
+}
+
+/* ─── Base Styles ────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-color: #050508;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0a0a0f;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #00f5ff33;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00f5ff66;
+  }
+}
+
+/* ─── Cyberpunk Background ───────────────────────────────────────────────────── */
+.cyber-bg {
+  background-color: #050508;
+  background-image:
+    linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  min-height: 100vh;
+}
+
+/* ─── Glassmorphism ──────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 245, 255, 0.1);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 245, 255, 0.15);
+}
+
+/* ─── Neon Effects ───────────────────────────────────────────────────────────── */
+.neon-text-cyan {
+  color: #00f5ff;
+  text-shadow: 0 0 10px #00f5ff, 0 0 20px #00f5ff, 0 0 40px #00f5ff;
+}
+
+.neon-text-purple {
+  color: #bf00ff;
+  text-shadow: 0 0 10px #bf00ff, 0 0 20px #bf00ff, 0 0 40px #bf00ff;
+}
+
+.neon-text-pink {
+  color: #ff0080;
+  text-shadow: 0 0 10px #ff0080, 0 0 20px #ff0080, 0 0 40px #ff0080;
+}
+
+.neon-border-cyan {
+  border-color: #00f5ff;
+  box-shadow: 0 0 5px #00f5ff33, inset 0 0 5px #00f5ff11;
+}
+
+.neon-border-purple {
+  border-color: #bf00ff;
+  box-shadow: 0 0 5px #bf00ff33, inset 0 0 5px #bf00ff11;
+}
+
+/* ─── Gradient Text ──────────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #00f5ff, #bf00ff, #ff0080);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-green {
+  background: linear-gradient(135deg, #00ff88, #00f5ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Animated Gradient Border ───────────────────────────────────────────────── */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(#050508, #050508) padding-box,
+    linear-gradient(135deg, #00f5ff, #bf00ff, #ff0080) border-box;
+  border: 1px solid transparent;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────────── */
+.btn-cyber {
+  @apply relative overflow-hidden px-6 py-3 font-semibold text-sm tracking-wider uppercase;
+  background: linear-gradient(135deg, #00f5ff22, #bf00ff22);
+  border: 1px solid #00f5ff44;
+  color: #00f5ff;
+  transition: all 0.3s ease;
+}
+
+.btn-cyber:hover {
+  background: linear-gradient(135deg, #00f5ff33, #bf00ff33);
+  border-color: #00f5ff;
+  box-shadow: 0 0 20px #00f5ff44, 0 0 40px #00f5ff22;
+  color: #fff;
+}
+
+.btn-cyber-primary {
+  @apply relative overflow-hidden px-6 py-3 font-semibold text-sm tracking-wider uppercase;
+  background: linear-gradient(135deg, #00f5ff, #bf00ff);
+  border: none;
+  color: #050508;
+  transition: all 0.3s ease;
+}
+
+.btn-cyber-primary:hover {
+  box-shadow: 0 0 30px #00f5ff66, 0 0 60px #bf00ff44;
+  transform: translateY(-1px);
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────────────────── */
+.card-cyber {
+  @apply glass rounded-xl p-6;
+  transition: all 0.3s ease;
+}
+
+.card-cyber:hover {
+  border-color: rgba(0, 245, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ─── Progress Bar ───────────────────────────────────────────────────────────── */
+.progress-cyber {
+  @apply relative h-2 rounded-full overflow-hidden;
+  background: rgba(0, 245, 255, 0.1);
+}
+
+.progress-cyber-fill {
+  @apply h-full rounded-full;
+  background: linear-gradient(90deg, #00f5ff, #bf00ff);
+  box-shadow: 0 0 10px #00f5ff66;
+  transition: width 0.5s ease;
+}
+
+/* ─── Input Fields ───────────────────────────────────────────────────────────── */
+.input-cyber {
+  @apply w-full px-4 py-3 rounded-lg text-white placeholder-gray-500;
+  background: rgba(0, 245, 255, 0.05);
+  border: 1px solid rgba(0, 245, 255, 0.2);
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.input-cyber:focus {
+  border-color: #00f5ff;
+  box-shadow: 0 0 15px rgba(0, 245, 255, 0.2);
+  background: rgba(0, 245, 255, 0.08);
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────────────────── */
+.badge-active {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.badge-sold-out {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  background: rgba(255, 0, 128, 0.15);
+  color: #ff0080;
+  border: 1px solid rgba(255, 0, 128, 0.3);
+}
+
+.badge-access {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  background: rgba(0, 245, 255, 0.15);
+  color: #00f5ff;
+  border: 1px solid rgba(0, 245, 255, 0.3);
+}
+
+/* ─── Loading Skeleton ───────────────────────────────────────────────────────── */
+.skeleton {
+  @apply rounded-lg;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 245, 255, 0.05) 25%,
+    rgba(0, 245, 255, 0.1) 50%,
+    rgba(0, 245, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── Scan Line Effect ───────────────────────────────────────────────────────── */
+.scan-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: linear-gradient(
+    transparent 50%,
+    rgba(0, 245, 255, 0.01) 50%
+  );
+  background-size: 100% 4px;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────────────────── */
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
