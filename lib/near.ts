@@ -283,7 +283,7 @@ export async function verifyTransaction(
   methodName?: string;
 }> {
   try {
-    const response = await fetch(NEAR_NODE_URL, {
+    const response = await fetch('https://testnet.rpc.fastnear.com', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
