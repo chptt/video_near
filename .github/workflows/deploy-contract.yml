@@ -16,18 +16,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install Rust + wasm32 target
+      - name: Install pnpm and near-sdk-js
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
-          rustup target add wasm32-unknown-unknown
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install near-sdk-js via pnpm
-        run: |
+          npm install -g pnpm
+          export PNPM_HOME="$HOME/.local/share/pnpm"
+          export PATH="$PNPM_HOME:$PATH"
+          echo "PNPM_HOME=$PNPM_HOME" >> $GITHUB_ENV
+          echo "$PNPM_HOME" >> $GITHUB_PATH
+          pnpm setup || true
           pnpm install -g near-sdk-js
           echo "near-sdk-js installed"
 
