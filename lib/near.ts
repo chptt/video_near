@@ -49,7 +49,17 @@ export async function callChangeMethod(
 
   console.log('[NEAR] Calling', methodName, 'on', CONTRACT_NAME, 'via wallet:', wallet.id, 'account:', activeAccount.accountId);
 
-  return wallet.signAndSendTransaction({
+  // Guard: if Meteor is selected but extension is gone, fail fast instead of hanging
+  if (wallet.id === 'meteor-wallet') {
+    const isMeteorInstalled = !!(window as unknown as Record<string, unknown>).meteorWallet;
+    if (!isMeteorInstalled) {
+      throw new Error('Meteor Wallet extension is not installed. Please install it or reconnect with a different wallet.');
+    }
+  }
+
+  // Race the transaction against a 3-minute timeout so the UI never hangs
+  // forever if the wallet silently fails to respond.
+  const txPromise = wallet.signAndSendTransaction({
     receiverId: CONTRACT_NAME,
     actions: [
       actionCreators.functionCall(
@@ -60,6 +70,12 @@ export async function callChangeMethod(
       ),
     ],
   });
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Wallet did not respond within 3 minutes. Please try again.')), 3 * 60 * 1000)
+  );
+
+  return Promise.race([txPromise, timeoutPromise]);
 }
 
 /**

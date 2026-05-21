@@ -2,7 +2,10 @@
  * PrivateStream NEAR - Wallet Context
  *
  * Uses @near-wallet-selector with modal UI.
- * Supports: MyNearWallet, NEAR Wallet, Meteor Wallet (browser extension), Sender
+ * Supports: MyNearWallet (redirect), HereWallet (redirect/mobile)
+ *
+ * NOTE: Extension-only wallets (Meteor, Sender) are intentionally excluded
+ * because they hang silently when the extension is not installed.
  */
 
 'use client';
@@ -68,14 +71,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const { setupModal } = await import('@near-wallet-selector/modal-ui');
       const { setupMyNearWallet } = await import('@near-wallet-selector/my-near-wallet');
       const { setupMeteorWallet } = await import('@near-wallet-selector/meteor-wallet');
-      const { setupSender } = await import('@near-wallet-selector/sender');
       const { setupHereWallet } = await import('@near-wallet-selector/here-wallet');
 
-      // Import modal CSS - use link tag to avoid TS issues
+      // Import modal CSS
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = 'https://cdn.jsdelivr.net/npm/@near-wallet-selector/modal-ui@8.9.3/styles.css';
       document.head.appendChild(link);
+
+      // Only include Meteor if the extension is actually installed.
+      // Without the extension, Meteor hangs silently on signAndSendTransaction.
+      const isMeteorInstalled =
+        typeof window !== 'undefined' &&
+        !!(window as unknown as Record<string, unknown>).meteorWallet;
 
       const _selector = await setupWalletSelector({
         network: {
@@ -86,12 +94,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           indexerUrl: 'https://testnet-api.kitwallet.app',
         },
         modules: [
-          setupMeteorWallet(),      // Browser extension
-          setupSender(),            // Sender browser extension
+          // MyNearWallet first — redirect-based, always works
           setupMyNearWallet({
             walletUrl: 'https://testnet.mynearwallet.com',
           }),
           setupHereWallet(),
+          // Meteor only if extension is present
+          ...(isMeteorInstalled ? [setupMeteorWallet()] : []),
         ],
       });
 
