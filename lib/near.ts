@@ -36,7 +36,7 @@ export interface WalletState {
 export function getNearConfig(): NearConfig {
   return {
     networkId: NEAR_NETWORK,
-    nodeUrl: 'https://free.rpc.fastnear.com',
+    nodeUrl: 'https://rpc.testnet.near.org',
     walletUrl: 'https://wallet.testnet.near.org',
     helperUrl: '',
     explorerUrl: 'https://testnet.nearblocks.io',
@@ -68,7 +68,7 @@ export async function initNearWallet() {
   const keyStore = new near.keyStores.BrowserLocalStorageKeyStore();
   const nearWithKeyStore = await near.connect({
     networkId: config.networkId,
-    nodeUrl: 'https://free.rpc.fastnear.com',
+    nodeUrl: 'https://rpc.testnet.near.org',
     walletUrl: 'https://wallet.testnet.near.org',
     keyStore,
     headers: {},
@@ -273,7 +273,7 @@ export async function verifyTransaction(
   methodName?: string;
 }> {
   try {
-    const response = await fetch('https://free.rpc.fastnear.com', {
+    const response = await fetch('https://rpc.testnet.near.org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
