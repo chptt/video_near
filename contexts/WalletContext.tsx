@@ -94,11 +94,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           indexerUrl: 'https://testnet-api.kitwallet.app',
         },
         modules: [
-          setupMeteorWallet(),
+          // MyNearWallet first — redirect-based, works without any extension
+          // and uses the nodeUrl configured above (our proxy)
           setupMyNearWallet({
             walletUrl: 'https://testnet.mynearwallet.com',
           }),
           setupHereWallet(),
+          // Meteor last — extension-based, uses its own internal RPC
+          // (may fail if rpc.testnet.near.org is unreachable from the extension)
+          setupMeteorWallet(),
         ],
       });
 
