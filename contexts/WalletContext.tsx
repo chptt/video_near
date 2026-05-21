@@ -79,12 +79,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       link.href = 'https://cdn.jsdelivr.net/npm/@near-wallet-selector/modal-ui@8.9.3/styles.css';
       document.head.appendChild(link);
 
-      // Only include Meteor if the extension is actually installed.
-      // Without the extension, Meteor hangs silently on signAndSendTransaction.
-      const isMeteorInstalled =
-        typeof window !== 'undefined' &&
-        !!(window as unknown as Record<string, unknown>).meteorWallet;
-
       const _selector = await setupWalletSelector({
         network: {
           networkId: 'testnet',
@@ -94,13 +88,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           indexerUrl: 'https://testnet-api.kitwallet.app',
         },
         modules: [
-          // MyNearWallet first — redirect-based, always works
+          setupMeteorWallet(),
           setupMyNearWallet({
             walletUrl: 'https://testnet.mynearwallet.com',
           }),
           setupHereWallet(),
-          // Meteor only if extension is present
-          ...(isMeteorInstalled ? [setupMeteorWallet()] : []),
         ],
       });
 
