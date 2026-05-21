@@ -47,20 +47,30 @@ export function PurchaseButton({
       setPurchaseState('purchasing');
       setErrorMessage('');
 
-      // Dynamically import near-api-js
+      // Dynamically import near wallet selector
       const { callChangeMethod } = await import('@/lib/near');
       const { nearToYocto } = await import('@/lib/near');
 
       // Convert NEAR price to yoctoNEAR
       const yoctoAmount = nearToYocto(priceNear);
 
-      // Call the smart contract purchase_access method
-      const result = await callChangeMethod(
-        'purchase_access',
-        { campaignId },
-        yoctoAmount,
-        '30000000000000' // 30 TGas
-      );
+      // Get wallet from selector
+      const selectorInstance = (window as unknown as { __nearSelector?: { wallet: () => Promise<{ signAndSendTransaction: (args: unknown) => Promise<{ transaction?: { hash?: string } }> }> } }).__nearSelector;
+      if (!selectorInstance) throw new Error('Wallet not connected');
+
+      const wallet = await selectorInstance.wallet();
+      const result = await wallet.signAndSendTransaction({
+        receiverId: process.env.NEXT_PUBLIC_CONTRACT_NAME || 'privatestream.chandanapt.testnet',
+        actions: [{
+          type: 'FunctionCall',
+          params: {
+            methodName: 'purchase_access',
+            args: { campaignId },
+            gas: '30000000000000',
+            deposit: yoctoAmount,
+          },
+        }],
+      });
 
       setPurchaseState('verifying');
 

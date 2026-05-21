@@ -4,7 +4,6 @@ const nextConfig = {
   images: {
     domains: ['gateway.pinata.cloud', 'ipfs.io'],
   },
-  // Required for near-api-js compatibility in Next.js
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -25,6 +24,15 @@ const nextConfig = {
     }
     return config;
   },
+  // Allow CSS imports from node_modules (wallet selector modal)
+  transpilePackages: [
+    '@near-wallet-selector/core',
+    '@near-wallet-selector/modal-ui',
+    '@near-wallet-selector/my-near-wallet',
+    '@near-wallet-selector/meteor-wallet',
+    '@near-wallet-selector/sender',
+    '@near-wallet-selector/here-wallet',
+  ],
 };
 
 module.exports = nextConfig;
