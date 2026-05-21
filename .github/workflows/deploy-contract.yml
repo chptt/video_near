@@ -68,6 +68,14 @@ jobs:
           echo "RPC Response: $RESULT"
           echo "Account check done - proceeding to deploy"
 
+      - name: Fund contract account for storage
+        env:
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
+        run: |
+          HOME=/root near send chandanapt.testnet \
+            privatestream.chandanapt.testnet 3 \
+            --networkId testnet || echo "Fund step done"
+
       - name: Deploy contract
         env:
           NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
@@ -75,6 +83,7 @@ jobs:
           HOME=/root near deploy \
             privatestream.chandanapt.testnet \
             contracts/private_stream_near.wasm \
+            --force \
             --networkId testnet
           echo "Deployed: privatestream.chandanapt.testnet"
 
