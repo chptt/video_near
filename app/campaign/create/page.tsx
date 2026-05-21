@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -57,7 +57,7 @@ interface PendingCampaign {
 
 type CreateStep = 'form' | 'encrypting' | 'uploading' | 'contract' | 'success';
 
-export default function CreateCampaignPage() {
+function CreateCampaignInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { accountId, isSignedIn, isLoading: walletLoading, login } = useWallet();
@@ -561,5 +561,17 @@ export default function CreateCampaignPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function CreateCampaignPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      </div>
+    }>
+      <CreateCampaignInner />
+    </Suspense>
   );
 }

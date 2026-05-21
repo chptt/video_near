@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock, Loader2, Shield } from 'lucide-react';
@@ -21,9 +21,9 @@ interface AccessStatus {
   reason?: string;
 }
 
-export default function WatchPage() {
+// ── Inner component uses useSearchParams — must be inside <Suspense> ──────────
+function WatchPageInner() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const campaignId = params.campaignId as string;
   const { accountId, isSignedIn, isLoading: walletLoading, login } = useWallet();
@@ -55,6 +55,12 @@ export default function WatchPage() {
         fetch(`/api/campaign/${campaignId}`),
       ]);
 
+      if (campaignRes.ok) {
+        const campaign = await campaignRes.json();
+        setCampaignTitle(campaign.title);
+        setMetadataCid(campaign.metadataCid || '');
+      }
+
       if (accessRes.ok) {
         const data = await accessRes.json();
 
@@ -64,27 +70,12 @@ export default function WatchPage() {
           const expiresAt = parseInt(expiresAtParam, 10);
           const now = Math.floor(Date.now() / 1000);
           if (expiresAt > now) {
-            setAccessStatus({
-              hasAccess: true,
-              expiresAt,
-              remainingSeconds: expiresAt - now,
-            });
-            if (campaignRes.ok) {
-              const campaign = await campaignRes.json();
-              setCampaignTitle(campaign.title);
-              setMetadataCid(campaign.metadataCid || '');
-            }
+            setAccessStatus({ hasAccess: true, expiresAt, remainingSeconds: expiresAt - now });
             return;
           }
         }
 
         setAccessStatus(data);
-      }
-
-      if (campaignRes.ok) {
-        const campaign = await campaignRes.json();
-        setCampaignTitle(campaign.title);
-        setMetadataCid(campaign.metadataCid || '');
       }
     } catch {
       // If API fails but we have a valid expiresAt param, use it
@@ -190,7 +181,6 @@ export default function WatchPage() {
       <Navbar />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-16">
-        {/* Back */}
         <Link
           href={`/campaign/${campaignId}`}
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-6 transition-colors"
@@ -203,7 +193,6 @@ export default function WatchPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-xl font-bold text-white">{campaignTitle || 'Secure Stream'}</h1>
@@ -214,7 +203,6 @@ export default function WatchPage() {
             </div>
           </div>
 
-          {/* Secure Player */}
           <SecurePlayer
             campaignId={campaignId}
             accountId={accountId!}
@@ -225,5 +213,18 @@ export default function WatchPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// ── Default export wraps inner component in Suspense ─────────────────────────
+export default function WatchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      </div>
+    }>
+      <WatchPageInner />
+    </Suspense>
   );
 }
