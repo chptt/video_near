@@ -68,17 +68,12 @@ export async function initNearWallet() {
   const near = await getNearApi();
   const config = getNearConfig();
 
-  const nearConnection = await near.connect({
-    networkId: config.networkId,
-    nodeUrl: config.nodeUrl,
-    walletUrl: config.walletUrl,
-    helperUrl: config.helperUrl,
-    headers: {},
-  });
-
   const keyStore = new near.keyStores.BrowserLocalStorageKeyStore();
   const nearWithKeyStore = await near.connect({
-    ...config,
+    networkId: config.networkId,
+    nodeUrl: 'https://testnet.rpc.fastnear.com',
+    walletUrl: config.walletUrl,
+    helperUrl: config.helperUrl,
     keyStore,
     headers: {},
   });
