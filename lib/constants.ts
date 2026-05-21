@@ -8,9 +8,8 @@ export const NEAR_NETWORK = process.env.NEXT_PUBLIC_NEAR_NETWORK || 'testnet';
 export const NEAR_NODE_URL = process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://rpc.testnet.near.org';
 export const NEAR_WALLET_URL = 'https://wallet.testnet.near.org';
 export const NEAR_HELPER_URL = '';
-export const NEAR_HELPER_URL = process.env.NEXT_PUBLIC_NEAR_HELPER_URL || '';
-export const CONTRACT_NAME = process.env.NEXT_PUBLIC_CONTRACT_NAME || 'privatestream.testnet';
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+export const CONTRACT_NAME = process.env.NEXT_PUBLIC_CONTRACT_NAME || 'privatestream.chandanapt.testnet';
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://video-near.vercel.app';
 
 // ─── Platform Economics ───────────────────────────────────────────────────────
 /** Maximum gross revenue per campaign in USD before it becomes sold out */
