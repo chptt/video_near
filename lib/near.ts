@@ -36,13 +36,10 @@ export interface WalletState {
 export function getNearConfig(): NearConfig {
   return {
     networkId: NEAR_NETWORK,
-    nodeUrl: NEAR_NODE_URL,
-    walletUrl: NEAR_WALLET_URL,
-    helperUrl: NEAR_HELPER_URL,
-    explorerUrl:
-      NEAR_NETWORK === 'mainnet'
-        ? 'https://nearblocks.io'
-        : 'https://testnet.nearblocks.io',
+    nodeUrl: 'https://free.rpc.fastnear.com',
+    walletUrl: 'https://wallet.testnet.near.org',
+    helperUrl: '',
+    explorerUrl: 'https://testnet.nearblocks.io',
   };
 }
 
@@ -72,11 +69,10 @@ export async function initNearWallet() {
   const nearWithKeyStore = await near.connect({
     networkId: config.networkId,
     nodeUrl: 'https://free.rpc.fastnear.com',
-    walletUrl: config.walletUrl,
-    helperUrl: config.helperUrl,
+    walletUrl: 'https://wallet.testnet.near.org',
     keyStore,
     headers: {},
-  });
+  } as Parameters<typeof near.connect>[0]);
 
   const wallet = new near.WalletConnection(nearWithKeyStore, 'privatestream-near');
   return { wallet, near: nearWithKeyStore };
@@ -88,9 +84,8 @@ export async function initNearWallet() {
  */
 export async function loginWithNearWallet(): Promise<void> {
   const { wallet } = await initNearWallet();
-  // near-api-js v4 uses a simplified requestSignIn
+  // Don't pass contractId - it tries to verify via deprecated helper
   await wallet.requestSignIn({
-    contractId: CONTRACT_NAME,
     successUrl: `${APP_URL}/dashboard`,
     failureUrl: `${APP_URL}/connect`,
   } as Parameters<typeof wallet.requestSignIn>[0]);
