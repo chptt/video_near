@@ -14,13 +14,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install system dependencies
-        run: |
-          apt-get update -qq
-          apt-get install -y -qq curl python3 git
+        run: apt-get update -qq && apt-get install -y -qq curl python3 git
 
       - name: Install Rust + wasm32
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           . "$HOME/.cargo/env"
           rustup target add wasm32-unknown-unknown
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
@@ -31,27 +29,24 @@ jobs:
           pnpm config set global-bin-dir /usr/local/bin
           pnpm config set global-dir /usr/local/lib/pnpm-global
 
-      - name: Install near-sdk-js
+      - name: Install near-sdk-js locally in contracts/
+        working-directory: contracts
         run: |
-          pnpm add -g near-sdk-js
-          echo "near-sdk-js installed ok"
+          pnpm init || true
+          pnpm add near-sdk-js
+          ls node_modules/near-sdk-js/lib/cli/deps/qjsc && echo "qjsc found"
 
       - name: Build contract WASM
+        working-directory: contracts
         run: |
-          # Install near-sdk-js locally so the contract import resolves
-          cd contracts
-          npm init -y
-          npm install near-sdk-js
-          cd ..
-          mkdir -p contracts/build
-          near-sdk-js build contracts/private_stream_near.js contracts/private_stream_near.wasm
-          ls -lh contracts/private_stream_near.wasm
-          echo "Build complete"
+          ./node_modules/.bin/near-sdk-js build \
+            private_stream_near.js \
+            private_stream_near.wasm
+          ls -lh private_stream_near.wasm
+          echo "WASM built successfully"
 
       - name: Install NEAR CLI
-        run: |
-          npm install -g near-cli
-          near --version
+        run: npm install -g near-cli
 
       - name: Setup NEAR credentials
         run: |
@@ -60,7 +55,6 @@ jobs:
             > /root/.near-credentials/testnet/chandanapt.testnet.json
           echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
             > /root/.near-credentials/testnet/privatestream.chandanapt.testnet.json
-          ls /root/.near-credentials/testnet/
 
       - name: Verify account balance
         run: |
@@ -68,13 +62,9 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"chandanapt.testnet"}}' \
             | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)
-          if 'result' in d:
-              bal=int(d['result']['amount'])/10**24
-              print(f'Balance: {bal:.4f} NEAR')
-          else:
-              print('Error:',d); sys.exit(1)
+          import json,sys; d=json.load(sys.stdin)
+          bal=int(d['result']['amount'])/10**24 if 'result' in d else None
+          print(f'Balance: {bal:.4f} NEAR') if bal else (print('Error:',d), sys.exit(1))
           "
 
       - name: Deploy contract
@@ -103,10 +93,6 @@ jobs:
           NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
           HOME: /root
         run: |
-          near view privatestream.chandanapt.testnet get_stats '{}' \
-            --networkId testnet
-          echo ""
-          echo "======================================"
+          near view privatestream.chandanapt.testnet get_stats '{}' --networkId testnet
           echo "CONTRACT: privatestream.chandanapt.testnet"
           echo "EXPLORER: https://testnet.nearblocks.io/address/privatestream.chandanapt.testnet"
-          echo "======================================"
