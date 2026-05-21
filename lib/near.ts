@@ -7,7 +7,7 @@
 
 import { CONTRACT_NAME, NEAR_NODE_URL, NEAR_NETWORK } from './constants';
 
-const NEAR_RPC = NEAR_NODE_URL || 'https://near.lava.build';
+const NEAR_RPC = NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com';
 
 // ─── Contract Interactions ────────────────────────────────────────────────────
 

@@ -78,7 +78,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       document.head.appendChild(link);
 
       const _selector = await setupWalletSelector({
-        network: 'testnet',
+        network: {
+          networkId: 'testnet',
+          nodeUrl: process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com',
+          helperUrl: 'https://helper.testnet.near.org',
+          explorerUrl: 'https://testnet.nearblocks.io',
+          indexerUrl: 'https://testnet-api.kitwallet.app',
+        },
         modules: [
           setupMeteorWallet(),      // Browser extension
           setupSender(),            // Sender browser extension
