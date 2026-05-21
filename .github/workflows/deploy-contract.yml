@@ -57,6 +57,8 @@ jobs:
             > /root/.near-credentials/testnet/chandanapt.testnet.json
           echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
             > /root/.near-credentials/testnet/privatestream.chandanapt.testnet.json
+          chmod 600 /root/.near-credentials/testnet/*.json
+          ls -la /root/.near-credentials/testnet/
 
       - name: Verify account balance
         run: |
@@ -68,30 +70,28 @@ jobs:
 
       - name: Deploy contract
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
-          HOME: /root
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
         run: |
-          near deploy \
-            --accountId privatestream.chandanapt.testnet \
-            --wasmFile contracts/private_stream_near.wasm \
+          HOME=/root near deploy \
+            privatestream.chandanapt.testnet \
+            contracts/private_stream_near.wasm \
             --networkId testnet
           echo "Deployed: privatestream.chandanapt.testnet"
 
       - name: Initialize contract
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
-          HOME: /root
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
         run: |
-          near call privatestream.chandanapt.testnet init \
+          HOME=/root near call privatestream.chandanapt.testnet init \
             '{"treasuryAccount":"chandanapt.testnet","nearPriceCents":500}' \
             --accountId chandanapt.testnet \
             --networkId testnet || echo "Already initialized"
 
       - name: Verify deployment
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
-          HOME: /root
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
         run: |
-          near view privatestream.chandanapt.testnet get_stats '{}' --networkId testnet
+          HOME=/root near view privatestream.chandanapt.testnet get_stats \
+            '{}' --networkId testnet
           echo "CONTRACT: privatestream.chandanapt.testnet"
           echo "EXPLORER: https://testnet.nearblocks.io/address/privatestream.chandanapt.testnet"
