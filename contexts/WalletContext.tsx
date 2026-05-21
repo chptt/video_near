@@ -79,10 +79,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       link.href = 'https://cdn.jsdelivr.net/npm/@near-wallet-selector/modal-ui@8.9.3/styles.css';
       document.head.appendChild(link);
 
+      // Use a self-hosted RPC proxy when running on the deployed app so wallet
+      // packages that have rpc.testnet.near.org hardcoded internally get routed
+      // through our reliable upstream instead.
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+      const rpcUrl = appUrl
+        ? `${appUrl}/api/rpc`
+        : process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com';
+
       const _selector = await setupWalletSelector({
         network: {
           networkId: 'testnet',
-          nodeUrl: process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com',
+          nodeUrl: rpcUrl,
           helperUrl: 'https://helper.testnet.near.org',
           explorerUrl: 'https://testnet.nearblocks.io',
           indexerUrl: 'https://testnet-api.kitwallet.app',
@@ -139,7 +147,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const fetchBalance = async (account: string, _sel: WalletSelector) => {
     try {
-      const response = await fetch(NEAR_NODE_URL, {
+      const rpcUrl = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/api/rpc`
+        : NEAR_NODE_URL;
+      const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
