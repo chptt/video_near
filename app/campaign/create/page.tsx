@@ -1,12 +1,19 @@
 /**
  * PrivateStream NEAR - Create Campaign Page
+ *
+ * WALLET REDIRECT HANDLING:
+ * MyNearWallet (and some other wallets) use a redirect-based signing flow.
+ * When the user clicks "sign" in the wallet, the browser navigates away and
+ * returns with ?transactionHashes=... in the URL.
+ * We persist pending campaign data in localStorage before the redirect so we
+ * can restore state and show the success screen on return.
  */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
 import {
   Plus,
   Youtube,
@@ -30,7 +37,6 @@ import {
   REVENUE_CAP_USD,
   PLATFORM_FEE_PERCENTAGE,
   CREATOR_PERCENTAGE,
-  CONTRACT_NAME,
 } from '@/lib/constants';
 
 const DURATION_OPTIONS = [
@@ -42,10 +48,18 @@ const DURATION_OPTIONS = [
   { label: '30 Days', value: 2592000 },
 ];
 
+const PENDING_CAMPAIGN_KEY = 'ps_pending_campaign';
+
+interface PendingCampaign {
+  campaignId: string;
+  metadataCid: string;
+}
+
 type CreateStep = 'form' | 'encrypting' | 'uploading' | 'contract' | 'success';
 
 export default function CreateCampaignPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { accountId, isSignedIn, isLoading: walletLoading, login } = useWallet();
 
   const [step, setStep] = useState<CreateStep>('form');
@@ -64,6 +78,43 @@ export default function CreateCampaignPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [campaignId, setCampaignId] = useState<string>('');
   const [metadataCid, setMetadataCid] = useState<string>('');
+
+  // ── On mount: check if returning from wallet redirect ──────────────────────
+  useEffect(() => {
+    const txHashes = searchParams.get('transactionHashes');
+    const errorCode = searchParams.get('errorCode');
+
+    if (errorCode) {
+      // User rejected in wallet
+      toast.error('Transaction cancelled by wallet');
+      localStorage.removeItem(PENDING_CAMPAIGN_KEY);
+      // Clean URL
+      router.replace('/campaign/create');
+      return;
+    }
+
+    if (txHashes) {
+      // Returned from wallet redirect — restore pending campaign
+      const raw = localStorage.getItem(PENDING_CAMPAIGN_KEY);
+      if (raw) {
+        try {
+          const pending: PendingCampaign = JSON.parse(raw);
+          setCampaignId(pending.campaignId);
+          setMetadataCid(pending.metadataCid);
+          setStep('success');
+          localStorage.removeItem(PENDING_CAMPAIGN_KEY);
+          toast.success('Campaign created successfully!');
+        } catch {
+          localStorage.removeItem(PENDING_CAMPAIGN_KEY);
+        }
+      } else {
+        // txHash present but no pending data — still show success
+        setStep('success');
+      }
+      // Clean URL
+      router.replace('/campaign/create');
+    }
+  }, [searchParams]);
 
   // Fetch NEAR price
   useEffect(() => {
@@ -116,7 +167,6 @@ export default function CreateCampaignPage() {
       return;
     }
 
-    // Validate
     const validation = validateCampaignInput(form);
     if (!validation.valid) {
       setErrors(validation.errors);
@@ -127,7 +177,7 @@ export default function CreateCampaignPage() {
     try {
       // Step 1: Encrypt + upload to IPFS
       setStep('encrypting');
-      await new Promise((r) => setTimeout(r, 800)); // UX delay
+      await new Promise((r) => setTimeout(r, 800));
 
       setStep('uploading');
 
@@ -155,12 +205,21 @@ export default function CreateCampaignPage() {
       setCampaignId(createData.campaignId);
       setMetadataCid(createData.metadataCid);
 
+      // ── Persist before wallet redirect ──────────────────────────────────────
+      // MyNearWallet redirects the browser to sign. We save the campaign data
+      // so we can restore it when the user returns.
+      const pending: PendingCampaign = {
+        campaignId: createData.campaignId,
+        metadataCid: createData.metadataCid,
+      };
+      localStorage.setItem(PENDING_CAMPAIGN_KEY, JSON.stringify(pending));
+
       // Step 2: Call smart contract
       setStep('contract');
 
       const { callChangeMethod, nearToYocto } = await import('@/lib/near');
 
-      await callChangeMethod(
+      const result = await callChangeMethod(
         'create_campaign',
         {
           campaignId: createData.campaignId,
@@ -172,15 +231,24 @@ export default function CreateCampaignPage() {
         '30000000000000'
       );
 
+      // If we reach here the wallet used a popup/async flow (Meteor, Sender)
+      // and didn't redirect — show success directly.
+      localStorage.removeItem(PENDING_CAMPAIGN_KEY);
       setStep('success');
       toast.success('Campaign created successfully!');
+      console.log('[Create] Contract result:', result);
     } catch (error) {
       console.error('[Create] Error:', error);
       const message = error instanceof Error ? error.message : 'Failed to create campaign';
 
-      if (message.includes('User rejected')) {
+      if (message.includes('User rejected') || message.includes('user rejected')) {
+        localStorage.removeItem(PENDING_CAMPAIGN_KEY);
         toast.error('Transaction cancelled');
+      } else if (message.includes('redirect') || message.includes('navigation')) {
+        // Wallet is redirecting — don't show error, pending data is saved
+        return;
       } else {
+        localStorage.removeItem(PENDING_CAMPAIGN_KEY);
         toast.error(message);
       }
 
@@ -265,12 +333,14 @@ export default function CreateCampaignPage() {
               </p>
             )}
             <div className="space-y-3">
-              <button
-                onClick={() => router.push(`/campaign/${campaignId}`)}
-                className="btn-cyber-primary px-6 py-3 rounded-xl w-full"
-              >
-                View Campaign
-              </button>
+              {campaignId && (
+                <button
+                  onClick={() => router.push(`/campaign/${campaignId}`)}
+                  className="btn-cyber-primary px-6 py-3 rounded-xl w-full"
+                >
+                  View Campaign
+                </button>
+              )}
               <button
                 onClick={() => router.push('/marketplace')}
                 className="btn-cyber px-6 py-3 rounded-xl w-full"
