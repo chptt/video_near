@@ -37,28 +37,28 @@ jobs:
       - name: Setup NEAR credentials
         run: |
           mkdir -p ~/.near-credentials/testnet
-          echo '${{ secrets.NEAR_CREDENTIALS }}' > ~/.near-credentials/testnet/${{ github.event.inputs.master_account }}.json
+          echo '${{ secrets.NEAR_CREDENTIALS }}' > ~/.near-credentials/testnet/chandanapt.testnet.json
+          # Also write sub-account credentials
+          echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' > ~/.near-credentials/testnet/privatestream.chandanapt.testnet.json
           echo "Credentials written"
+          cat ~/.near-credentials/testnet/chandanapt.testnet.json | python3 -c "import json,sys; d=json.load(sys.stdin); print('account_id:', d['account_id'])"
 
-      - name: Create contract sub-account
+      - name: Set RPC URL
         run: |
-          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
-          MASTER="${{ github.event.inputs.master_account }}"
-          
-          # Check if sub-account exists
-          if near state $CONTRACT_ACCOUNT --networkId testnet 2>&1 | grep -q "does not exist"; then
-            near create-account $CONTRACT_ACCOUNT \
-              --masterAccount $MASTER \
-              --initialBalance 10 \
-              --networkId testnet
-            echo "Sub-account created: $CONTRACT_ACCOUNT"
-          else
-            echo "Sub-account already exists: $CONTRACT_ACCOUNT"
-          fi
+          echo "NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com" >> $GITHUB_ENV
+
+      - name: Verify master account exists
+        run: |
+          curl -s -X POST https://testnet.rpc.fastnear.com \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"chandanapt.testnet"}}' \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print('Balance:', int(d['result']['amount']) / 10**24, 'NEAR') if 'result' in d else print('Error:', d)"
 
       - name: Deploy contract
         run: |
-          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
+          MASTER="chandanapt.testnet"
+          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
           near deploy \
             --accountId $CONTRACT_ACCOUNT \
             --wasmFile contracts/private_stream_near.wasm \
@@ -67,17 +67,18 @@ jobs:
 
       - name: Initialize contract
         run: |
-          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
-          MASTER="${{ github.event.inputs.master_account }}"
+          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
+          MASTER="chandanapt.testnet"
+          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
           near call $CONTRACT_ACCOUNT init \
             "{\"treasuryAccount\":\"$MASTER\",\"nearPriceCents\":500}" \
             --accountId $MASTER \
-            --networkId testnet
-          echo "Contract initialized"
+            --networkId testnet || echo "Already initialized, skipping"
 
       - name: Verify deployment
         run: |
-          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
+          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
           near view $CONTRACT_ACCOUNT get_stats '{}' --networkId testnet
           echo ""
           echo "======================================"
