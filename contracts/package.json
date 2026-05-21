@@ -1,14 +1,12 @@
 {
   "name": "privatestream-near-contract",
   "version": "1.0.0",
-  "description": "PrivateStream NEAR smart contract (NEAR JS SDK)",
+  "description": "PrivateStream NEAR smart contract",
   "type": "module",
-  "scripts": {
-    "build": "near-sdk-js build private_stream_near.js --out private_stream_near.wasm",
-    "deploy": "near deploy --accountId $CONTRACT_ACCOUNT --wasmFile private_stream_near.wasm",
-    "test:view": "near view $CONTRACT_ACCOUNT get_stats '{}'"
-  },
   "dependencies": {
-    "near-sdk-js": "^2.6.1"
+    "near-sdk-js": "2.0.0"
+  },
+  "scripts": {
+    "build": "near-sdk-js build private_stream_near.js private_stream_near.wasm"
   }
 }
