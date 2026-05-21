@@ -48,34 +48,23 @@ export function PurchaseButton({
       setErrorMessage('');
 
       // Dynamically import near wallet selector
-      const { callChangeMethod } = await import('@/lib/near');
-      const { nearToYocto } = await import('@/lib/near');
+      const { callChangeMethod, nearToYocto } = await import('@/lib/near');
 
       // Convert NEAR price to yoctoNEAR
       const yoctoAmount = nearToYocto(priceNear);
 
-      // Get wallet from selector
-      const selectorInstance = (window as unknown as { __nearSelector?: { wallet: () => Promise<{ signAndSendTransaction: (args: unknown) => Promise<{ transaction?: { hash?: string } }> }> } }).__nearSelector;
-      if (!selectorInstance) throw new Error('Wallet not connected');
-
-      const wallet = await selectorInstance.wallet();
-      const result = await wallet.signAndSendTransaction({
-        receiverId: process.env.NEXT_PUBLIC_CONTRACT_NAME || 'privatestream.chandanapt.testnet',
-        actions: [{
-          type: 'FunctionCall',
-          params: {
-            methodName: 'purchase_access',
-            args: { campaignId },
-            gas: '30000000000000',
-            deposit: yoctoAmount,
-          },
-        }],
-      });
+      // Call contract via wallet selector
+      const result = await callChangeMethod(
+        'purchase_access',
+        { campaignId },
+        yoctoAmount,
+        '30000000000000'
+      );
 
       setPurchaseState('verifying');
 
       // Extract transaction hash from result
-      const txHash = (result as { transaction?: { hash?: string } })?.transaction?.hash;
+      const txHash = (result as { transaction?: { hash?: string }; final_execution_status?: string })?.transaction?.hash;
 
       if (txHash && accountId) {
         // Record purchase on backend

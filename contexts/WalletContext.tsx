@@ -129,23 +129,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchBalance = async (account: string, sel: WalletSelector) => {
+  const fetchBalance = async (account: string, _sel: WalletSelector) => {
     try {
-      const nearApi = await import('near-api-js');
-      const keyStore = new nearApi.keyStores.BrowserLocalStorageKeyStore();
-      const near = await nearApi.connect({
-        networkId: 'testnet',
-        nodeUrl: 'https://rpc.testnet.near.org',
-        keyStore,
-        headers: {},
+      const response = await fetch('https://rpc.testnet.near.org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: '1', method: 'query',
+          params: { request_type: 'view_account', finality: 'final', account_id: account },
+        }),
       });
-      const acc = await near.account(account);
-      const bal = await acc.getAccountBalance();
-      const near_amount = Number(BigInt(bal.available)) / 1e24;
-      setBalance(near_amount.toFixed(4));
-    } catch {
-      setBalance(null);
-    }
+      const data = await response.json();
+      if (data.result?.amount) {
+        const near = Number(BigInt(data.result.amount)) / 1e24;
+        setBalance(near.toFixed(4));
+      }
+    } catch { setBalance(null); }
   };
 
   const login = useCallback(() => {

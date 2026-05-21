@@ -7,7 +7,7 @@
 
 import { CONTRACT_NAME, NEAR_NETWORK } from './constants';
 
-export const TESTNET_RPC = 'https://rpc.testnet.near.org';
+export const TESTNET_RPC = 'https://near.lava.build';
 
 // ─── Contract Interactions ────────────────────────────────────────────────────
 
@@ -40,7 +40,12 @@ export async function callChangeMethod(
     actions: [
       {
         type: 'FunctionCall',
-        params: { methodName, args, gas, deposit: depositYocto },
+        params: {
+          methodName,
+          args,
+          gas,
+          deposit: depositYocto,
+        },
       },
     ],
   });
