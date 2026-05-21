@@ -8,6 +8,7 @@ env:
   MASTER_ACCOUNT: chandanapt.testnet
   NETWORK: testnet
   RPC_URL: https://testnet.rpc.fastnear.com
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
@@ -18,126 +19,107 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Node.js 20 ────────────────────────────────────────────────────────
-      - name: Setup Node.js 20
+      # ── 2. Node.js 24 ────────────────────────────────────────────────────────
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      # ── 3. Install near-sdk-js with exact working version ────────────────────
+      # ── 3. Install Rust (needed for near-sdk-js WASM build) ──────────────────
+      - name: Install Rust + wasm32 target
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup target add wasm32-unknown-unknown
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      # ── 4. Install near-sdk-js ───────────────────────────────────────────────
       - name: Install near-sdk-js
         run: |
-          npm install -g near-sdk-js@2.6.1
-          which near-sdk-js || npx near-sdk-js --version
+          npm install -g near-sdk-js@2.0.0
           echo "near-sdk-js installed"
 
-      # ── 4. Build contract JS → WASM ──────────────────────────────────────────
+      # ── 5. Build contract JS → WASM ──────────────────────────────────────────
       - name: Build contract WASM
         run: |
-          cd $GITHUB_WORKSPACE
-          # Install quickjs-emscripten needed by near-sdk-js
-          npm install near-sdk-js@2.6.1
-          
-          # Build using local node_modules
-          ./node_modules/.bin/near-sdk-js build \
-            contracts/private_stream_near.js \
+          near-sdk-js build contracts/private_stream_near.js \
             --out contracts/private_stream_near.wasm
-          
-          echo "Build complete"
+          echo "✓ Build complete"
           ls -lh contracts/private_stream_near.wasm
 
-      # ── 5. Install NEAR CLI (Rust-based v5 via cargo) ────────────────────────
+      # ── 6. Install NEAR CLI (Rust-based v5) ──────────────────────────────────
       - name: Install NEAR CLI RS
         run: |
+          source "$HOME/.cargo/env"
+          cargo install near-cli-rs --locked 2>/dev/null || \
           curl --proto '=https' --tlsv1.2 -LsSf \
             https://github.com/near/near-cli-rs/releases/latest/download/near-cli-rs-installer.sh \
             | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.cargo/bin:$PATH"
           near --version
 
-      # ── 6. Write credentials ─────────────────────────────────────────────────
+      # ── 7. Write credentials ─────────────────────────────────────────────────
       - name: Setup NEAR credentials
         run: |
           mkdir -p ~/.near-credentials/testnet
-          
           echo '${{ secrets.NEAR_CREDENTIALS }}' \
-            > ~/.near-credentials/testnet/${{ env.MASTER_ACCOUNT }}.json
-          
+            > ~/.near-credentials/testnet/chandanapt.testnet.json
           echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
-            > ~/.near-credentials/testnet/${{ env.CONTRACT_ACCOUNT }}.json
-          
-          echo "Credentials written for:"
-          ls ~/.near-credentials/testnet/
+            > ~/.near-credentials/testnet/privatestream.chandanapt.testnet.json
+          echo "✓ Credentials written:"
+          ls -la ~/.near-credentials/testnet/
 
-      # ── 7. Verify account balance ─────────────────────────────────────────────
+      # ── 8. Verify account balance ─────────────────────────────────────────────
       - name: Verify account balance
         run: |
           curl -s -X POST ${{ env.RPC_URL }} \
             -H "Content-Type: application/json" \
-            -d '{
-              "jsonrpc":"2.0","id":"1","method":"query",
-              "params":{
-                "request_type":"view_account",
-                "finality":"final",
-                "account_id":"${{ env.MASTER_ACCOUNT }}"
-              }
-            }' | python3 -c "
-          import json, sys
-          d = json.load(sys.stdin)
+            -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"chandanapt.testnet"}}' \
+            | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
           if 'result' in d:
-              bal = int(d['result']['amount']) / 10**24
-              print(f'✓ Account: ${{ env.MASTER_ACCOUNT }}')
-              print(f'✓ Balance: {bal:.4f} NEAR')
+              bal=int(d['result']['amount'])/10**24
+              print(f'✓ chandanapt.testnet balance: {bal:.4f} NEAR')
           else:
-              print('✗ Error:', d['error'])
-              sys.exit(1)
+              print('Error:',d); sys.exit(1)
           "
 
-      # ── 8. Deploy contract ────────────────────────────────────────────────────
+      # ── 9. Deploy contract ────────────────────────────────────────────────────
       - name: Deploy contract
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          
-          near contract deploy ${{ env.CONTRACT_ACCOUNT }} \
+          near contract deploy privatestream.chandanapt.testnet \
             use-file contracts/private_stream_near.wasm \
             without-init-call \
-            network-config ${{ env.NETWORK }} \
+            network-config testnet \
             sign-with-keychain \
             send
-          
-          echo "✓ Contract deployed to: ${{ env.CONTRACT_ACCOUNT }}"
+          echo "✓ Contract deployed to: privatestream.chandanapt.testnet"
 
-      # ── 9. Initialize contract ────────────────────────────────────────────────
+      # ── 10. Initialize contract ───────────────────────────────────────────────
       - name: Initialize contract
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          
           near contract call-function as-transaction \
-            ${{ env.CONTRACT_ACCOUNT }} init \
-            json-args '{"treasuryAccount":"${{ env.MASTER_ACCOUNT }}","nearPriceCents":500}' \
+            privatestream.chandanapt.testnet init \
+            json-args '{"treasuryAccount":"chandanapt.testnet","nearPriceCents":500}' \
             prepaid-gas '30 Tgas' \
             attached-deposit '0 NEAR' \
-            sign-as ${{ env.MASTER_ACCOUNT }} \
-            network-config ${{ env.NETWORK }} \
+            sign-as chandanapt.testnet \
+            network-config testnet \
             sign-with-keychain \
             send || echo "Already initialized, skipping"
 
-      # ── 10. Verify deployment ─────────────────────────────────────────────────
+      # ── 11. Verify deployment ─────────────────────────────────────────────────
       - name: Verify deployment
         run: |
-          export PATH="$HOME/.cargo/bin:$PATH"
-          
           near contract call-function as-read-only \
-            ${{ env.CONTRACT_ACCOUNT }} get_stats \
+            privatestream.chandanapt.testnet get_stats \
             json-args '{}' \
-            network-config ${{ env.NETWORK }} \
+            network-config testnet \
             now
-          
           echo ""
           echo "=============================================="
           echo "  CONTRACT DEPLOYED SUCCESSFULLY!"
-          echo "  Address: ${{ env.CONTRACT_ACCOUNT }}"
-          echo "  Network: ${{ env.NETWORK }}"
-          echo "  Explorer: https://testnet.nearblocks.io/address/${{ env.CONTRACT_ACCOUNT }}"
+          echo "  Address : privatestream.chandanapt.testnet"
+          echo "  Network : testnet"
+          echo "  Explorer: https://testnet.nearblocks.io/address/privatestream.chandanapt.testnet"
           echo "=============================================="
