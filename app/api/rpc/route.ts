@@ -3,33 +3,38 @@
  *
  * Forwards JSON-RPC requests to reliable testnet RPC endpoints.
  * Tries multiple upstreams in order until one succeeds.
+ *
+ * Sources: https://docs.near.org/api/rpc/providers
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 const UPSTREAM_RPCS = [
-  'https://testnet.rpc.fastnear.com',
-  'https://near-testnet.lava.build',
-  'https://rpc.testnet.pagoda.co',
-  'https://testnet.nearrpc.com',
+  'https://test.rpc.fastnear.com',       // FastNEAR testnet (official)
+  'https://near-testnet.drpc.org',        // dRPC testnet
+  'https://testnet-rpc.intea.rs',         // Intear RPC testnet
 ];
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
-  let lastError: string = 'All RPC endpoints failed';
+  const errors: string[] = [];
 
   for (const rpc of UPSTREAM_RPCS) {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+
       const response = await fetch(rpc, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        // 10 second timeout per upstream
-        signal: AbortSignal.timeout(10000),
+        signal: controller.signal,
       });
 
+      clearTimeout(timer);
+
       if (!response.ok) {
-        lastError = `${rpc} returned ${response.status}`;
+        errors.push(`${rpc} → HTTP ${response.status}`);
         continue;
       }
 
@@ -44,15 +49,19 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (err) {
-      lastError = `${rpc}: ${err instanceof Error ? err.message : String(err)}`;
-      console.warn('[RPC Proxy] Upstream failed, trying next:', lastError);
-      continue;
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${rpc} → ${msg}`);
+      console.warn('[RPC Proxy] Upstream failed:', rpc, msg);
     }
   }
 
-  console.error('[RPC Proxy] All upstreams failed:', lastError);
+  console.error('[RPC Proxy] All upstreams failed:', errors);
   return NextResponse.json(
-    { jsonrpc: '2.0', error: { code: -32603, message: lastError }, id: null },
+    {
+      jsonrpc: '2.0',
+      error: { code: -32603, message: `All RPC upstreams failed: ${errors.join(' | ')}` },
+      id: null,
+    },
     { status: 502 }
   );
 }

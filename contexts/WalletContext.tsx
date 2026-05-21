@@ -83,7 +83,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // rpc.testnet.near.org hardcoded internally get routed through
       // our reliable upstream instead.
       const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '');
-      const rpcUrl = origin ? `${origin}/api/rpc` : 'https://testnet.rpc.fastnear.com';
+      const rpcUrl = origin ? `${origin}/api/rpc` : 'https://test.rpc.fastnear.com';
 
       const _selector = await setupWalletSelector({
         network: {
