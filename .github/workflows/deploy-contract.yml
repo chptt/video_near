@@ -39,10 +39,12 @@ jobs:
       - name: Build contract WASM
         working-directory: contracts
         run: |
+          mkdir -p build
           ./node_modules/.bin/near-sdk-js build \
             private_stream_near.js \
-            private_stream_near.wasm
-          ls -lh private_stream_near.wasm
+            build/private_stream_near.wasm
+          ls -lh build/private_stream_near.wasm
+          cp build/private_stream_near.wasm private_stream_near.wasm
           echo "WASM built successfully"
 
       - name: Install NEAR CLI
