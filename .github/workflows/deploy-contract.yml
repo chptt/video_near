@@ -38,8 +38,8 @@ jobs:
 
       - name: Build contract WASM
         run: |
-          near-sdk-js build contracts/private_stream_near.js \
-            --out contracts/private_stream_near.wasm
+          mkdir -p contracts/build
+          near-sdk-js build contracts/private_stream_near.js contracts/private_stream_near.wasm
           ls -lh contracts/private_stream_near.wasm
           echo "Build complete"
 
