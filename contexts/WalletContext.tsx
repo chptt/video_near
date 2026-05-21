@@ -67,6 +67,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
 
+      // ── Clear stale Meteor session if extension is not installed ────────────
+      // Meteor stores its session in localStorage under the key 'near-wallet-selector:selectedWalletId'
+      // If it's set to meteor-wallet but the extension isn't present, clear it
+      // so the selector doesn't auto-restore a broken session.
+      try {
+        const storedWallet = localStorage.getItem('near-wallet-selector:selectedWalletId');
+        const isMeteorInstalled = !!(window as unknown as Record<string, unknown>).meteorWallet;
+        if (storedWallet === '"meteor-wallet"' && !isMeteorInstalled) {
+          localStorage.removeItem('near-wallet-selector:selectedWalletId');
+          localStorage.removeItem('near-wallet-selector:contract');
+          console.log('[Wallet] Cleared stale Meteor session — extension not found');
+        }
+      } catch { /* ignore */ }
+
       const { setupWalletSelector } = await import('@near-wallet-selector/core');
       const { setupModal } = await import('@near-wallet-selector/modal-ui');
       const { setupMyNearWallet } = await import('@near-wallet-selector/my-near-wallet');
