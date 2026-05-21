@@ -6,45 +6,56 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-22.04
+    container:
+      image: node:20-bullseye
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm and near-sdk-js
+      - name: Install system dependencies
         run: |
-          npm install -g pnpm
-          export PNPM_HOME="$HOME/.local/share/pnpm"
-          export PATH="$PNPM_HOME:$PATH"
-          echo "PNPM_HOME=$PNPM_HOME" >> $GITHUB_ENV
-          echo "$PNPM_HOME" >> $GITHUB_PATH
-          pnpm setup || true
-          pnpm install -g near-sdk-js
-          echo "near-sdk-js installed"
+          apt-get update -qq
+          apt-get install -y -qq curl python3 git
+
+      - name: Install Rust + wasm32
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          . "$HOME/.cargo/env"
+          rustup target add wasm32-unknown-unknown
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Setup pnpm
+        run: |
+          npm install -g pnpm@9
+          pnpm config set global-bin-dir /usr/local/bin
+          pnpm config set global-dir /usr/local/lib/pnpm-global
+
+      - name: Install near-sdk-js
+        run: |
+          pnpm add -g near-sdk-js
+          near-sdk-js --version
 
       - name: Build contract WASM
         run: |
           near-sdk-js build contracts/private_stream_near.js \
             --out contracts/private_stream_near.wasm
-          echo "Build complete"
           ls -lh contracts/private_stream_near.wasm
+          echo "Build complete"
 
       - name: Install NEAR CLI
-        run: npm install -g near-cli
+        run: |
+          npm install -g near-cli
+          near --version
 
       - name: Setup NEAR credentials
         run: |
-          mkdir -p ~/.near-credentials/testnet
+          mkdir -p /root/.near-credentials/testnet
           echo '${{ secrets.NEAR_CREDENTIALS }}' \
-            > ~/.near-credentials/testnet/chandanapt.testnet.json
+            > /root/.near-credentials/testnet/chandanapt.testnet.json
           echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
-            > ~/.near-credentials/testnet/privatestream.chandanapt.testnet.json
-          ls ~/.near-credentials/testnet/
+            > /root/.near-credentials/testnet/privatestream.chandanapt.testnet.json
+          ls /root/.near-credentials/testnet/
 
       - name: Verify account balance
         run: |
@@ -64,16 +75,18 @@ jobs:
       - name: Deploy contract
         env:
           NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
+          HOME: /root
         run: |
           near deploy \
             --accountId privatestream.chandanapt.testnet \
             --wasmFile contracts/private_stream_near.wasm \
             --networkId testnet
-          echo "Deployed to: privatestream.chandanapt.testnet"
+          echo "Deployed: privatestream.chandanapt.testnet"
 
       - name: Initialize contract
         env:
           NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
+          HOME: /root
         run: |
           near call privatestream.chandanapt.testnet init \
             '{"treasuryAccount":"chandanapt.testnet","nearPriceCents":500}' \
@@ -83,8 +96,12 @@ jobs:
       - name: Verify deployment
         env:
           NEAR_CLI_TESTNET_RPC_SERVER_URL: https://testnet.rpc.fastnear.com
+          HOME: /root
         run: |
           near view privatestream.chandanapt.testnet get_stats '{}' \
             --networkId testnet
-          echo "Contract: privatestream.chandanapt.testnet"
-          echo "Explorer: https://testnet.nearblocks.io/address/privatestream.chandanapt.testnet"
+          echo ""
+          echo "======================================"
+          echo "CONTRACT: privatestream.chandanapt.testnet"
+          echo "EXPLORER: https://testnet.nearblocks.io/address/privatestream.chandanapt.testnet"
+          echo "======================================"
