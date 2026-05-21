@@ -13,6 +13,10 @@ const NEAR_RPC = NEAR_NODE_URL || 'https://near.lava.build';
 
 /**
  * Calls a change method on the smart contract via wallet selector.
+ *
+ * Uses actionCreators from @near-wallet-selector/core to build the FunctionCall
+ * action — this avoids the "Unsupported NAJ action" error thrown by wallet
+ * selector v10 when a plain { type, params } object is passed instead.
  */
 export async function callChangeMethod(
   methodName: string,
@@ -20,30 +24,26 @@ export async function callChangeMethod(
   depositYocto: string = '0',
   gas: string = '30000000000000'
 ): Promise<unknown> {
-  const selectorInstance = ((window as unknown) as Record<string, unknown>).__nearSelector as {
-    wallet: () => Promise<{
-      signAndSendTransaction: (args: {
-        receiverId: string;
-        actions: Array<{ type: string; params: Record<string, unknown> }>;
-      }) => Promise<unknown>;
-    }>;
-  } | undefined;
+  const selectorInstance = (
+    (window as unknown) as Record<string, unknown>
+  ).__nearSelector as import('@near-wallet-selector/core').WalletSelector | undefined;
 
   if (!selectorInstance) throw new Error('Wallet not connected');
+
+  // Use the wallet selector's own action creators so the action is typed
+  // correctly and not rejected as an "unsupported NAJ action".
+  const { actionCreators } = await import('@near-wallet-selector/core');
 
   const wallet = await selectorInstance.wallet();
   return wallet.signAndSendTransaction({
     receiverId: CONTRACT_NAME,
     actions: [
-      {
-        type: 'FunctionCall',
-        params: {
-          methodName,
-          args,
-          gas,
-          deposit: depositYocto,
-        },
-      },
+      actionCreators.functionCall(
+        methodName,
+        args,
+        BigInt(gas),
+        BigInt(depositYocto)
+      ),
     ],
   });
 }

@@ -158,14 +158,14 @@ export default function CreateCampaignPage() {
       // Step 2: Call smart contract
       setStep('contract');
 
-      const { callChangeMethod } = await import('@/lib/near');
+      const { callChangeMethod, nearToYocto } = await import('@/lib/near');
 
       await callChangeMethod(
         'create_campaign',
         {
           campaignId: createData.campaignId,
           metadataCid: createData.metadataCid,
-          priceYocto: (parseFloat(form.priceNear) * 1e24).toFixed(0),
+          priceYocto: nearToYocto(form.priceNear),
           durationSeconds: form.durationSeconds,
         },
         '0',
