@@ -8,11 +8,9 @@
 import { CONTRACT_NAME, NEAR_NODE_URL, NEAR_NETWORK } from './constants';
 
 const NEAR_RPC =
-  (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/rpc`
-    : null) ||
-  NEAR_NODE_URL ||
-  'https://testnet.rpc.fastnear.com';
+  typeof window !== 'undefined'
+    ? `${window.location.origin}/api/rpc`
+    : NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com';
 
 // ─── Contract Interactions ────────────────────────────────────────────────────
 
