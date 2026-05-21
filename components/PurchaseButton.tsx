@@ -41,7 +41,7 @@ export function PurchaseButton({
   soldOut,
   onSuccess,
 }: PurchaseButtonProps) {
-  const { accountId, isSignedIn, login } = useWallet();
+  const { accountId, isSignedIn, login, selector } = useWallet();
   const [state, setPurchaseState] = useState<PurchaseState>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -199,7 +199,8 @@ export function PurchaseButton({
         'purchase_access',
         { campaignId },
         yoctoAmount,
-        '30000000000000'
+        '30000000000000',
+        selector ?? undefined
       );
 
       // Reached here = popup/async wallet (Meteor, Sender) — no redirect

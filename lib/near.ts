@@ -14,6 +14,9 @@ const NEAR_RPC = NEAR_NODE_URL || 'https://testnet.rpc.fastnear.com';
 /**
  * Calls a change method on the smart contract via wallet selector.
  *
+ * Accepts the selector instance directly (preferred) or falls back to
+ * window.__nearSelector for backwards compatibility.
+ *
  * Uses actionCreators from @near-wallet-selector/core to build the FunctionCall
  * action — this avoids the "Unsupported NAJ action" error thrown by wallet
  * selector v10 when a plain { type, params } object is passed instead.
@@ -22,19 +25,30 @@ export async function callChangeMethod(
   methodName: string,
   args: Record<string, unknown>,
   depositYocto: string = '0',
-  gas: string = '30000000000000'
+  gas: string = '30000000000000',
+  selectorOverride?: import('@near-wallet-selector/core').WalletSelector
 ): Promise<unknown> {
-  const selectorInstance = (
-    (window as unknown) as Record<string, unknown>
-  ).__nearSelector as import('@near-wallet-selector/core').WalletSelector | undefined;
+  const selectorInstance =
+    selectorOverride ||
+    ((window as unknown) as Record<string, unknown>).__nearSelector as
+      | import('@near-wallet-selector/core').WalletSelector
+      | undefined;
 
   if (!selectorInstance) throw new Error('Wallet not connected');
+
+  // Check wallet is actually signed in
+  const state = selectorInstance.store.getState();
+  const activeAccount = state.accounts.find((a: { active: boolean }) => a.active);
+  if (!activeAccount) throw new Error('No active wallet account. Please reconnect your wallet.');
 
   // Use the wallet selector's own action creators so the action is typed
   // correctly and not rejected as an "unsupported NAJ action".
   const { actionCreators } = await import('@near-wallet-selector/core');
 
   const wallet = await selectorInstance.wallet();
+
+  console.log('[NEAR] Calling', methodName, 'on', CONTRACT_NAME, 'via wallet:', wallet.id, 'account:', activeAccount.accountId);
+
   return wallet.signAndSendTransaction({
     receiverId: CONTRACT_NAME,
     actions: [

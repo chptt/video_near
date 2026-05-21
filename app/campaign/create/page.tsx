@@ -60,7 +60,7 @@ type CreateStep = 'form' | 'encrypting' | 'uploading' | 'contract' | 'success';
 function CreateCampaignInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { accountId, isSignedIn, isLoading: walletLoading, login } = useWallet();
+  const { accountId, isSignedIn, isLoading: walletLoading, login, selector } = useWallet();
 
   const [step, setStep] = useState<CreateStep>('form');
   const [hasCampaign, setHasCampaign] = useState(false);
@@ -228,7 +228,8 @@ function CreateCampaignInner() {
           durationSeconds: form.durationSeconds,
         },
         '0',
-        '30000000000000'
+        '30000000000000',
+        selector ?? undefined
       );
 
       // If we reach here the wallet used a popup/async flow (Meteor, Sender)
@@ -244,15 +245,19 @@ function CreateCampaignInner() {
       if (message.includes('User rejected') || message.includes('user rejected')) {
         localStorage.removeItem(PENDING_CAMPAIGN_KEY);
         toast.error('Transaction cancelled');
-      } else if (message.includes('redirect') || message.includes('navigation')) {
-        // Wallet is redirecting — don't show error, pending data is saved
+        setStep('form');
+      } else if (
+        message.includes('redirect') ||
+        message.includes('navigation') ||
+        message.includes('Cannot read') // page unloading mid-await
+      ) {
+        // Wallet is redirecting — pending data is saved, do nothing
         return;
       } else {
         localStorage.removeItem(PENDING_CAMPAIGN_KEY);
         toast.error(message);
+        setStep('form');
       }
-
-      setStep('form');
     }
   };
 
