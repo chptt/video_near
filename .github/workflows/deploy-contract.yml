@@ -1,0 +1,87 @@
+name: Deploy NEAR Contract
+
+on:
+  workflow_dispatch:
+    inputs:
+      master_account:
+        description: 'Your NEAR testnet account (e.g. chandanapt.testnet)'
+        required: true
+        default: 'chandanapt.testnet'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install near-sdk-js
+        run: npm install -g near-sdk-js
+
+      - name: Build contract WASM
+        run: |
+          npx near-sdk-js build contracts/private_stream_near.js \
+            --out contracts/private_stream_near.wasm
+          echo "Contract built successfully"
+          ls -la contracts/private_stream_near.wasm
+
+      - name: Install NEAR CLI
+        run: npm install -g near-cli
+
+      - name: Setup NEAR credentials
+        run: |
+          mkdir -p ~/.near-credentials/testnet
+          echo '${{ secrets.NEAR_CREDENTIALS }}' > ~/.near-credentials/testnet/${{ github.event.inputs.master_account }}.json
+          echo "Credentials written"
+
+      - name: Create contract sub-account
+        run: |
+          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          MASTER="${{ github.event.inputs.master_account }}"
+          
+          # Check if sub-account exists
+          if near state $CONTRACT_ACCOUNT --networkId testnet 2>&1 | grep -q "does not exist"; then
+            near create-account $CONTRACT_ACCOUNT \
+              --masterAccount $MASTER \
+              --initialBalance 10 \
+              --networkId testnet
+            echo "Sub-account created: $CONTRACT_ACCOUNT"
+          else
+            echo "Sub-account already exists: $CONTRACT_ACCOUNT"
+          fi
+
+      - name: Deploy contract
+        run: |
+          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          near deploy \
+            --accountId $CONTRACT_ACCOUNT \
+            --wasmFile contracts/private_stream_near.wasm \
+            --networkId testnet
+          echo "Contract deployed to: $CONTRACT_ACCOUNT"
+
+      - name: Initialize contract
+        run: |
+          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          MASTER="${{ github.event.inputs.master_account }}"
+          near call $CONTRACT_ACCOUNT init \
+            "{\"treasuryAccount\":\"$MASTER\",\"nearPriceCents\":500}" \
+            --accountId $MASTER \
+            --networkId testnet
+          echo "Contract initialized"
+
+      - name: Verify deployment
+        run: |
+          CONTRACT_ACCOUNT="privatestream.${{ github.event.inputs.master_account }}"
+          near view $CONTRACT_ACCOUNT get_stats '{}' --networkId testnet
+          echo ""
+          echo "======================================"
+          echo "CONTRACT DEPLOYED SUCCESSFULLY"
+          echo "Address: $CONTRACT_ACCOUNT"
+          echo "Explorer: https://testnet.nearblocks.io/address/$CONTRACT_ACCOUNT"
+          echo "======================================"
