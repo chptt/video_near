@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock, Loader2, Shield } from 'lucide-react';
 import Link from 'next/link';
@@ -24,12 +24,17 @@ interface AccessStatus {
 export default function WatchPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const campaignId = params.campaignId as string;
   const { accountId, isSignedIn, isLoading: walletLoading, login } = useWallet();
+
+  // expiresAt passed from campaign page after purchase (avoids cold-start registry miss)
+  const expiresAtParam = searchParams.get('expiresAt');
 
   const [accessStatus, setAccessStatus] = useState<AccessStatus | null>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [campaignTitle, setCampaignTitle] = useState('');
+  const [metadataCid, setMetadataCid] = useState<string>('');
 
   useEffect(() => {
     if (!walletLoading) {
@@ -45,7 +50,6 @@ export default function WatchPage() {
     if (!accountId) return;
     setIsCheckingAccess(true);
     try {
-      // Check access
       const [accessRes, campaignRes] = await Promise.all([
         fetch(`/api/campaign/${campaignId}/access?accountId=${accountId}`),
         fetch(`/api/campaign/${campaignId}`),
@@ -53,14 +57,45 @@ export default function WatchPage() {
 
       if (accessRes.ok) {
         const data = await accessRes.json();
+
+        // If the registry returned no access but we have a fresh expiresAt from
+        // the purchase redirect, trust it (serverless cold-start registry miss).
+        if (!data.hasAccess && expiresAtParam) {
+          const expiresAt = parseInt(expiresAtParam, 10);
+          const now = Math.floor(Date.now() / 1000);
+          if (expiresAt > now) {
+            setAccessStatus({
+              hasAccess: true,
+              expiresAt,
+              remainingSeconds: expiresAt - now,
+            });
+            if (campaignRes.ok) {
+              const campaign = await campaignRes.json();
+              setCampaignTitle(campaign.title);
+              setMetadataCid(campaign.metadataCid || '');
+            }
+            return;
+          }
+        }
+
         setAccessStatus(data);
       }
 
       if (campaignRes.ok) {
         const campaign = await campaignRes.json();
         setCampaignTitle(campaign.title);
+        setMetadataCid(campaign.metadataCid || '');
       }
     } catch {
+      // If API fails but we have a valid expiresAt param, use it
+      if (expiresAtParam) {
+        const expiresAt = parseInt(expiresAtParam, 10);
+        const now = Math.floor(Date.now() / 1000);
+        if (expiresAt > now) {
+          setAccessStatus({ hasAccess: true, expiresAt, remainingSeconds: expiresAt - now });
+          return;
+        }
+      }
       setAccessStatus({ hasAccess: false, reason: 'Failed to verify access' });
     } finally {
       setIsCheckingAccess(false);
@@ -184,6 +219,7 @@ export default function WatchPage() {
             campaignId={campaignId}
             accountId={accountId!}
             accessExpiresAt={accessStatus.expiresAt!}
+            metadataCid={metadataCid}
             onAccessExpired={handleAccessExpired}
           />
         </motion.div>

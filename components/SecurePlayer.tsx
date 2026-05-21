@@ -24,6 +24,7 @@ interface SecurePlayerProps {
   campaignId: string;
   accountId: string;
   accessExpiresAt: number;
+  metadataCid?: string;
   onAccessExpired?: () => void;
 }
 
@@ -49,6 +50,7 @@ export function SecurePlayer({
   campaignId,
   accountId,
   accessExpiresAt,
+  metadataCid,
   onAccessExpired,
 }: SecurePlayerProps) {
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | null>(null);
@@ -65,7 +67,7 @@ export function SecurePlayer({
       const response = await fetch(`/api/campaign/${campaignId}/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId }),
+        body: JSON.stringify({ accountId, expiresAt: accessExpiresAt, metadataCid }),
       });
 
       if (!response.ok) {

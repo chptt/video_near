@@ -111,6 +111,18 @@ export default function CampaignDetailPage() {
     fetchCampaign(); // Refresh revenue data
   };
 
+  // ...existing code...
+
+  // ── Purchase or Watch button ──────────────────────────────────────────────
+  // After purchase, navigate with expiresAt so the watch page doesn't depend
+  // on the in-memory registry (which resets on serverless cold starts).
+  const handleWatchNow = () => {
+    const params = accessStatus?.expiresAt
+      ? `?expiresAt=${accessStatus.expiresAt}`
+      : '';
+    router.push(`/watch/${campaignId}${params}`);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen">
@@ -298,7 +310,7 @@ export default function CampaignDetailPage() {
               {/* Purchase or Watch button */}
               {accessStatus?.hasAccess ? (
                 <button
-                  onClick={() => router.push(`/watch/${campaignId}`)}
+                  onClick={handleWatchNow}
                   className="w-full btn-cyber-primary py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2"
                 >
                   <Unlock className="w-4 h-4" />

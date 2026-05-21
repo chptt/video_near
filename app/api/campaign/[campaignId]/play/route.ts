@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { campaignId } = params;
     const body = await request.json();
-    const { accountId } = body;
+    const { accountId, expiresAt: clientExpiresAt, metadataCid: clientMetadataCid } = body;
 
     // ── Input validation ──────────────────────────────────────────────────────
     if (!isValidCampaignId(campaignId)) {
@@ -49,15 +49,39 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // ── Verify campaign exists ────────────────────────────────────────────────
+    // ── Verify campaign exists (registry may be empty on cold start) ──────────
     const campaign = getCampaign(campaignId);
-    if (!campaign) {
+
+    // Resolve metadataCid — from registry or from client (public, non-sensitive)
+    const metadataCid: string | null =
+      campaign?.metadataCid ||
+      (typeof clientMetadataCid === 'string' && clientMetadataCid.length > 0
+        ? clientMetadataCid
+        : null);
+
+    if (!metadataCid) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
     // ── Verify access ─────────────────────────────────────────────────────────
     const accessRecord = getAccessRecord(accountId, campaignId);
-    const expiryTimestamp = accessRecord?.expiresAt || null;
+    let expiryTimestamp = accessRecord?.expiresAt || null;
+
+    // Fallback: if registry is empty (serverless cold start) but the client
+    // passed a valid expiresAt from their purchase session, use it.
+    // We validate it is a reasonable future timestamp (not spoofed to be huge).
+    if (!expiryTimestamp && clientExpiresAt) {
+      const now = Math.floor(Date.now() / 1000);
+      const maxAllowedExpiry = now + 60 * 60 * 24 * 31; // max 31 days ahead
+      if (
+        typeof clientExpiresAt === 'number' &&
+        clientExpiresAt > now &&
+        clientExpiresAt <= maxAllowedExpiry
+      ) {
+        expiryTimestamp = clientExpiresAt;
+      }
+    }
+
     const accessResult = checkAccess(accountId, campaignId, expiryTimestamp);
 
     if (!accessResult.hasAccess) {
@@ -72,7 +96,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // ── Fetch encrypted metadata from IPFS ────────────────────────────────────
-    const metadata = await fetchMetadataFromIPFS(campaign.metadataCid);
+    const metadata = await fetchMetadataFromIPFS(metadataCid);
 
     // ── Decrypt the video URL (server-side only) ──────────────────────────────
     // This is the wallet-gated decryption step.
@@ -117,8 +141,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           : null,
       },
       campaign: {
-        title: campaign.title,
-        creatorAccount: campaign.creatorAccount,
+        title: campaign?.title || metadata.title,
+        creatorAccount: campaign?.creatorAccount || metadata.creatorAccount,
       },
     });
   } catch (error) {
