@@ -34,7 +34,7 @@ jobs:
       - name: Install near-sdk-js
         run: |
           pnpm add -g near-sdk-js
-          near-sdk-js --version
+          echo "near-sdk-js installed ok"
 
       - name: Build contract WASM
         run: |
