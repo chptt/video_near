@@ -5,9 +5,9 @@
 
 'use client';
 
-import { CONTRACT_NAME, NEAR_NETWORK } from './constants';
+import { CONTRACT_NAME, NEAR_NODE_URL, NEAR_NETWORK } from './constants';
 
-export const TESTNET_RPC = 'https://near.lava.build';
+const NEAR_RPC = NEAR_NODE_URL || 'https://near.lava.build';
 
 // ─── Contract Interactions ────────────────────────────────────────────────────
 
@@ -24,10 +24,7 @@ export async function callChangeMethod(
     wallet: () => Promise<{
       signAndSendTransaction: (args: {
         receiverId: string;
-        actions: Array<{
-          type: 'FunctionCall';
-          params: { methodName: string; args: Record<string, unknown>; gas: string; deposit: string };
-        }>;
+        actions: Array<{ type: string; params: Record<string, unknown> }>;
       }) => Promise<unknown>;
     }>;
   } | undefined;
@@ -58,7 +55,7 @@ export async function callViewMethod<T>(
   methodName: string,
   args: Record<string, unknown> = {}
 ): Promise<T> {
-  const response = await fetch(TESTNET_RPC, {
+  const response = await fetch(NEAR_RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -114,7 +111,7 @@ export async function verifyTransaction(
   accountId: string
 ): Promise<{ success: boolean; receiverId?: string; deposit?: string; methodName?: string }> {
   try {
-    const response = await fetch(TESTNET_RPC, {
+    const response = await fetch(NEAR_RPC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -150,7 +147,7 @@ export async function getAccountBalance() { return '0'; }
 export function getNearConfig() {
   return {
     networkId: NEAR_NETWORK,
-    nodeUrl: TESTNET_RPC,
+    nodeUrl: NEAR_RPC,
     walletUrl: 'https://wallet.testnet.near.org',
     helperUrl: '',
     explorerUrl: 'https://testnet.nearblocks.io',

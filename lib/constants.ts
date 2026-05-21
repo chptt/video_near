@@ -5,7 +5,7 @@
 
 // ─── NEAR Network ────────────────────────────────────────────────────────────
 export const NEAR_NETWORK = process.env.NEXT_PUBLIC_NEAR_NETWORK || 'testnet';
-export const NEAR_NODE_URL = process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://rpc.testnet.near.org';
+export const NEAR_NODE_URL = process.env.NEXT_PUBLIC_NEAR_NODE_URL || 'https://near.lava.build';
 export const NEAR_WALLET_URL = 'https://wallet.testnet.near.org';
 export const NEAR_HELPER_URL = '';
 export const CONTRACT_NAME = process.env.NEXT_PUBLIC_CONTRACT_NAME || 'privatestream.chandanapt.testnet';

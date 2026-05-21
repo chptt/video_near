@@ -16,6 +16,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { toast } from 'sonner';
+import { CONTRACT_NAME, NEAR_NODE_URL } from '@/lib/constants';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import type { WalletSelectorModal } from '@near-wallet-selector/modal-ui';
 
@@ -89,7 +90,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
 
       const _modal = setupModal(_selector, {
-        contractId: 'privatestream.chandanapt.testnet',
+        contractId: CONTRACT_NAME,
         description: 'Connect your NEAR wallet to access PrivateStream',
       });
 
@@ -131,7 +132,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const fetchBalance = async (account: string, _sel: WalletSelector) => {
     try {
-      const response = await fetch('https://rpc.testnet.near.org', {
+      const response = await fetch(NEAR_NODE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
