@@ -2,87 +2,142 @@ name: Deploy NEAR Contract
 
 on:
   workflow_dispatch:
-    inputs:
-      master_account:
-        description: 'Your NEAR testnet account (e.g. chandanapt.testnet)'
-        required: true
-        default: 'chandanapt.testnet'
+
+env:
+  CONTRACT_ACCOUNT: privatestream.chandanapt.testnet
+  MASTER_ACCOUNT: chandanapt.testnet
+  NETWORK: testnet
+  RPC_URL: https://testnet.rpc.fastnear.com
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # ── 2. Node.js 20 ────────────────────────────────────────────────────────
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # ── 3. Install near-sdk-js with exact working version ────────────────────
       - name: Install near-sdk-js
-        run: npm install -g near-sdk-js
+        run: |
+          npm install -g near-sdk-js@2.6.1
+          which near-sdk-js || npx near-sdk-js --version
+          echo "near-sdk-js installed"
 
+      # ── 4. Build contract JS → WASM ──────────────────────────────────────────
       - name: Build contract WASM
         run: |
-          npx near-sdk-js build contracts/private_stream_near.js \
+          cd $GITHUB_WORKSPACE
+          # Install quickjs-emscripten needed by near-sdk-js
+          npm install near-sdk-js@2.6.1
+          
+          # Build using local node_modules
+          ./node_modules/.bin/near-sdk-js build \
+            contracts/private_stream_near.js \
             --out contracts/private_stream_near.wasm
-          echo "Contract built successfully"
-          ls -la contracts/private_stream_near.wasm
+          
+          echo "Build complete"
+          ls -lh contracts/private_stream_near.wasm
 
-      - name: Install NEAR CLI
-        run: npm install -g near-cli
+      # ── 5. Install NEAR CLI (Rust-based v5 via cargo) ────────────────────────
+      - name: Install NEAR CLI RS
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            https://github.com/near/near-cli-rs/releases/latest/download/near-cli-rs-installer.sh \
+            | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cargo/bin:$PATH"
+          near --version
 
+      # ── 6. Write credentials ─────────────────────────────────────────────────
       - name: Setup NEAR credentials
         run: |
           mkdir -p ~/.near-credentials/testnet
-          echo '${{ secrets.NEAR_CREDENTIALS }}' > ~/.near-credentials/testnet/chandanapt.testnet.json
-          # Also write sub-account credentials
-          echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' > ~/.near-credentials/testnet/privatestream.chandanapt.testnet.json
-          echo "Credentials written"
-          cat ~/.near-credentials/testnet/chandanapt.testnet.json | python3 -c "import json,sys; d=json.load(sys.stdin); print('account_id:', d['account_id'])"
+          
+          echo '${{ secrets.NEAR_CREDENTIALS }}' \
+            > ~/.near-credentials/testnet/${{ env.MASTER_ACCOUNT }}.json
+          
+          echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
+            > ~/.near-credentials/testnet/${{ env.CONTRACT_ACCOUNT }}.json
+          
+          echo "Credentials written for:"
+          ls ~/.near-credentials/testnet/
 
-      - name: Set RPC URL
+      # ── 7. Verify account balance ─────────────────────────────────────────────
+      - name: Verify account balance
         run: |
-          echo "NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com" >> $GITHUB_ENV
-
-      - name: Verify master account exists
-        run: |
-          curl -s -X POST https://testnet.rpc.fastnear.com \
+          curl -s -X POST ${{ env.RPC_URL }} \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"chandanapt.testnet"}}' \
-            | python3 -c "import json,sys; d=json.load(sys.stdin); print('Balance:', int(d['result']['amount']) / 10**24, 'NEAR') if 'result' in d else print('Error:', d)"
+            -d '{
+              "jsonrpc":"2.0","id":"1","method":"query",
+              "params":{
+                "request_type":"view_account",
+                "finality":"final",
+                "account_id":"${{ env.MASTER_ACCOUNT }}"
+              }
+            }' | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          if 'result' in d:
+              bal = int(d['result']['amount']) / 10**24
+              print(f'✓ Account: ${{ env.MASTER_ACCOUNT }}')
+              print(f'✓ Balance: {bal:.4f} NEAR')
+          else:
+              print('✗ Error:', d['error'])
+              sys.exit(1)
+          "
 
+      # ── 8. Deploy contract ────────────────────────────────────────────────────
       - name: Deploy contract
         run: |
-          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
-          MASTER="chandanapt.testnet"
-          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
-          near deploy \
-            --accountId $CONTRACT_ACCOUNT \
-            --wasmFile contracts/private_stream_near.wasm \
-            --networkId testnet
-          echo "Contract deployed to: $CONTRACT_ACCOUNT"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          
+          near contract deploy ${{ env.CONTRACT_ACCOUNT }} \
+            use-file contracts/private_stream_near.wasm \
+            without-init-call \
+            network-config ${{ env.NETWORK }} \
+            sign-with-keychain \
+            send
+          
+          echo "✓ Contract deployed to: ${{ env.CONTRACT_ACCOUNT }}"
 
+      # ── 9. Initialize contract ────────────────────────────────────────────────
       - name: Initialize contract
         run: |
-          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
-          MASTER="chandanapt.testnet"
-          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
-          near call $CONTRACT_ACCOUNT init \
-            "{\"treasuryAccount\":\"$MASTER\",\"nearPriceCents\":500}" \
-            --accountId $MASTER \
-            --networkId testnet || echo "Already initialized, skipping"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          
+          near contract call-function as-transaction \
+            ${{ env.CONTRACT_ACCOUNT }} init \
+            json-args '{"treasuryAccount":"${{ env.MASTER_ACCOUNT }}","nearPriceCents":500}' \
+            prepaid-gas '30 Tgas' \
+            attached-deposit '0 NEAR' \
+            sign-as ${{ env.MASTER_ACCOUNT }} \
+            network-config ${{ env.NETWORK }} \
+            sign-with-keychain \
+            send || echo "Already initialized, skipping"
 
+      # ── 10. Verify deployment ─────────────────────────────────────────────────
       - name: Verify deployment
         run: |
-          CONTRACT_ACCOUNT="privatestream.chandanapt.testnet"
-          NEAR_CLI_TESTNET_RPC_SERVER_URL=https://testnet.rpc.fastnear.com \
-          near view $CONTRACT_ACCOUNT get_stats '{}' --networkId testnet
+          export PATH="$HOME/.cargo/bin:$PATH"
+          
+          near contract call-function as-read-only \
+            ${{ env.CONTRACT_ACCOUNT }} get_stats \
+            json-args '{}' \
+            network-config ${{ env.NETWORK }} \
+            now
+          
           echo ""
-          echo "======================================"
-          echo "CONTRACT DEPLOYED SUCCESSFULLY"
-          echo "Address: $CONTRACT_ACCOUNT"
-          echo "Explorer: https://testnet.nearblocks.io/address/$CONTRACT_ACCOUNT"
-          echo "======================================"
+          echo "=============================================="
+          echo "  CONTRACT DEPLOYED SUCCESSFULLY!"
+          echo "  Address: ${{ env.CONTRACT_ACCOUNT }}"
+          echo "  Network: ${{ env.NETWORK }}"
+          echo "  Explorer: https://testnet.nearblocks.io/address/${{ env.CONTRACT_ACCOUNT }}"
+          echo "=============================================="
