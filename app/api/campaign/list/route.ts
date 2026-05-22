@@ -10,33 +10,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getActiveCampaigns, getAllCampaigns, registerCampaign } from '@/lib/campaignRegistry';
 import { calculateRevenueStatus } from '@/lib/pricing';
 import { formatDuration } from '@/lib/access';
-import { CONTRACT_NAME, NEAR_NODE_URL } from '@/lib/constants';
+import { viewContract } from '@/lib/rpc';
 
 export const dynamic = 'force-dynamic';
 
-// Server-safe RPC call (can't import from near.ts which has 'use client')
+// Server-safe RPC call
 async function viewMethod<T>(methodName: string, args: Record<string, unknown> = {}): Promise<T> {
-  const rpc = NEAR_NODE_URL || 'https://test.rpc.fastnear.com';
-  const response = await fetch(rpc, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 'dontcare',
-      method: 'query',
-      params: {
-        request_type: 'call_function',
-        finality: 'final',
-        account_id: CONTRACT_NAME,
-        method_name: methodName,
-        args_base64: Buffer.from(JSON.stringify(args)).toString('base64'),
-      },
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  return JSON.parse(Buffer.from(data.result.result).toString()) as T;
+  return viewContract<T>(methodName, args);
 }
 
 interface OnChainCampaign {
