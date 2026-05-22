@@ -8,13 +8,14 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Zap, Shield, LayoutDashboard, Store, Plus } from 'lucide-react';
+import { Menu, X, Zap, Shield, LayoutDashboard, Store, Plus, ShoppingBag } from 'lucide-react';
 import { useWallet } from '@/contexts/WalletContext';
 import { WalletConnect } from './WalletConnect';
 import { APP_NAME } from '@/lib/constants';
 
 const navLinks = [
   { href: '/marketplace', label: 'Marketplace', icon: Store },
+  { href: '/purchases', label: 'My Purchases', icon: ShoppingBag },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/campaign/create', label: 'Create', icon: Plus },
 ];
