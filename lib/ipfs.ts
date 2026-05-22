@@ -96,29 +96,68 @@ export async function uploadMetadataToIPFS(
 
 /**
  * Fetches campaign metadata from IPFS by CID.
- * Returns the raw metadata object (still encrypted).
- *
- * @param cid - The IPFS Content Identifier
- * @returns CampaignMetadata object with encrypted video URL
+ * Tries the configured Pinata gateway (with auth) first,
+ * then falls back to public IPFS gateways.
  */
 export async function fetchMetadataFromIPFS(cid: string): Promise<CampaignMetadata> {
-  const gatewayUrl = process.env.PINATA_GATEWAY_URL || PINATA_GATEWAY_URL;
-  const url = `${gatewayUrl}/ipfs/${cid}`;
+  const jwt = process.env.PINATA_JWT;
+  const configuredGateway = process.env.PINATA_GATEWAY_URL || PINATA_GATEWAY_URL;
 
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
+  // Build list of gateways to try in order
+  const gateways: Array<{ url: string; headers: Record<string, string> }> = [
+    // 1. Configured gateway with JWT auth (works for dedicated gateways)
+    {
+      url: `${configuredGateway}/ipfs/${cid}`,
+      headers: {
+        Accept: 'application/json',
+        ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+      },
     },
-    // Cache for 5 minutes — metadata is immutable once uploaded
-    next: { revalidate: 300 },
-  });
+    // 2. Public Pinata gateway (no auth needed)
+    {
+      url: `https://gateway.pinata.cloud/ipfs/${cid}`,
+      headers: { Accept: 'application/json' },
+    },
+    // 3. Cloudflare IPFS gateway
+    {
+      url: `https://cloudflare-ipfs.com/ipfs/${cid}`,
+      headers: { Accept: 'application/json' },
+    },
+    // 4. ipfs.io gateway
+    {
+      url: `https://ipfs.io/ipfs/${cid}`,
+      headers: { Accept: 'application/json' },
+    },
+  ];
 
-  if (!response.ok) {
-    throw new Error(`[IPFS] Failed to fetch metadata: ${response.status} from ${url}`);
+  const errors: string[] = [];
+
+  for (const { url, headers } of gateways) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        headers,
+        signal: controller.signal,
+        next: { revalidate: 300 },
+      });
+
+      clearTimeout(timer);
+
+      if (!response.ok) {
+        errors.push(`${url} → HTTP ${response.status}`);
+        continue;
+      }
+
+      const metadata = await response.json();
+      return metadata as CampaignMetadata;
+    } catch (err) {
+      errors.push(`${url} → ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
-  const metadata = await response.json();
-  return metadata as CampaignMetadata;
+  throw new Error(`[IPFS] All gateways failed for ${cid}: ${errors.join(' | ')}`);
 }
 
 /**
