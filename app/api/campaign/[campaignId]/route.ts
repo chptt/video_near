@@ -78,6 +78,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
+    // Get exact priceYocto from contract for accurate purchase amounts
+    let priceYocto: string | null = null;
+    try {
+      const onChainFresh = await viewMethod<{ priceYocto: string } | null>('get_campaign', { campaignId });
+      priceYocto = onChainFresh?.priceYocto || null;
+    } catch { /* non-critical */ }
+
     const revenueStatus = await calculateRevenueStatus(campaign.grossRevenueNear);
 
     return NextResponse.json({
@@ -86,6 +93,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       description: campaign.description,
       creatorAccount: campaign.creatorAccount,
       priceNear: campaign.priceNear,
+      priceYocto,
       durationSeconds: campaign.durationSeconds,
       durationFormatted: formatDuration(campaign.durationSeconds),
       purchaseCount: campaign.purchaseCount,

@@ -29,6 +29,7 @@ interface PendingPurchase {
 interface PurchaseButtonProps {
   campaignId: string;
   priceNear: string;
+  priceYocto?: string;  // exact on-chain value, preferred over priceNear conversion
   soldOut: boolean;
   onSuccess?: (expiresAt: number) => void;
 }
@@ -38,6 +39,7 @@ type PurchaseState = 'idle' | 'connecting' | 'checking' | 'purchasing' | 'verify
 export function PurchaseButton({
   campaignId,
   priceNear,
+  priceYocto,
   soldOut,
   onSuccess,
 }: PurchaseButtonProps) {
@@ -184,8 +186,11 @@ export function PurchaseButton({
 
       setPurchaseState('purchasing');
 
+      // Use exact priceYocto from contract to avoid any rounding issues
+      // Add 1 yoctoNEAR buffer to ensure deposit >= price
       const { callChangeMethod, nearToYocto } = await import('@/lib/near');
-      const yoctoAmount = nearToYocto(priceNear);
+      const baseYocto = priceYocto || nearToYocto(priceNear);
+      const yoctoAmount = (BigInt(baseYocto) + 1n).toString();
 
       // ── Save pending purchase before wallet redirect ───────────────────────
       const pending: PendingPurchase = {

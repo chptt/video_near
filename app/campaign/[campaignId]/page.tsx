@@ -32,6 +32,7 @@ interface CampaignDetail {
   description: string;
   creatorAccount: string;
   priceNear: string;
+  priceYocto?: string;
   durationSeconds: number;
   durationFormatted: string;
   purchaseCount: number;
@@ -320,6 +321,7 @@ export default function CampaignDetailPage() {
                 <PurchaseButton
                   campaignId={campaignId}
                   priceNear={campaign.priceNear}
+                  priceYocto={campaign.priceYocto}
                   soldOut={campaign.soldOut}
                   onSuccess={handlePurchaseSuccess}
                 />
