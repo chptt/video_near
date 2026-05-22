@@ -3,6 +3,9 @@ name: Deploy NEAR Contract
 on:
   workflow_dispatch:
 
+env:
+  NEAR_RPC: https://test.rpc.fastnear.com
+
 jobs:
   deploy:
     runs-on: ubuntu-22.04
@@ -58,19 +61,10 @@ jobs:
           echo '${{ secrets.NEAR_CONTRACT_CREDENTIALS }}' \
             > /root/.near-credentials/testnet/privatestream.chandanapt.testnet.json
           chmod 600 /root/.near-credentials/testnet/*.json
-          ls -la /root/.near-credentials/testnet/
-
-      - name: Verify account balance
-        run: |
-          RESULT=$(curl -s --max-time 10 -X POST https://rpc.testnet.near.org \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"query","params":{"request_type":"view_account","finality":"final","account_id":"chandanapt.testnet"}}')
-          echo "RPC Response: $RESULT"
-          echo "Account check done - proceeding to deploy"
 
       - name: Fund contract account for storage
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: ${{ env.NEAR_RPC }}
         run: |
           HOME=/root near send chandanapt.testnet \
             privatestream.chandanapt.testnet 3 \
@@ -78,7 +72,7 @@ jobs:
 
       - name: Deploy contract
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: ${{ env.NEAR_RPC }}
         run: |
           HOME=/root near deploy \
             privatestream.chandanapt.testnet \
@@ -87,18 +81,39 @@ jobs:
             --networkId testnet
           echo "Deployed: privatestream.chandanapt.testnet"
 
-      - name: Initialize contract
+      - name: Initialize contract (skip if already done)
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: ${{ env.NEAR_RPC }}
         run: |
           HOME=/root near call privatestream.chandanapt.testnet init \
             '{"treasuryAccount":"chandanapt.testnet","nearPriceCents":500}' \
             --accountId chandanapt.testnet \
-            --networkId testnet || echo "Already initialized"
+            --networkId testnet || echo "Already initialized - skipping"
+
+      - name: Delete existing test campaign (clear for fresh test)
+        env:
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: ${{ env.NEAR_RPC }}
+        run: |
+          CAMPAIGN=$(HOME=/root near view privatestream.chandanapt.testnet \
+            get_creator_campaign \
+            '{"accountId":"chandanapt.testnet"}' \
+            --networkId testnet 2>/dev/null || echo "null")
+          echo "Existing campaign: $CAMPAIGN"
+          CAMPAIGN_ID=$(echo "$CAMPAIGN" | grep -o '"id": *"[^"]*"' | head -1 | sed 's/"id": *"//;s/"//')
+          if [ -n "$CAMPAIGN_ID" ] && [ "$CAMPAIGN_ID" != "null" ]; then
+            echo "Deleting campaign: $CAMPAIGN_ID"
+            HOME=/root near call privatestream.chandanapt.testnet delete_campaign \
+              "{\"campaignId\":\"$CAMPAIGN_ID\"}" \
+              --accountId chandanapt.testnet \
+              --networkId testnet
+            echo "Campaign deleted"
+          else
+            echo "No existing campaign to delete"
+          fi
 
       - name: Verify deployment
         env:
-          NEAR_CLI_TESTNET_RPC_SERVER_URL: https://rpc.testnet.near.org
+          NEAR_CLI_TESTNET_RPC_SERVER_URL: ${{ env.NEAR_RPC }}
         run: |
           HOME=/root near view privatestream.chandanapt.testnet get_stats \
             '{}' --networkId testnet

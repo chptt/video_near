@@ -43,8 +43,8 @@ export const MIN_PRICE_NEAR = 0.1;
 /** Maximum price in NEAR */
 export const MAX_PRICE_NEAR = 100;
 
-/** Minimum access duration in seconds (1 hour) */
-export const MIN_DURATION_SECONDS = 3600;
+/** Minimum access duration in seconds (2 minutes for testing) */
+export const MIN_DURATION_SECONDS = 120;
 
 /** Maximum access duration in seconds (30 days) */
 export const MAX_DURATION_SECONDS = 30 * 24 * 3600;

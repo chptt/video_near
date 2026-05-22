@@ -222,6 +222,14 @@ export function isTransactionProcessed(txHash: string): boolean {
 
 // ─── Registry Stats ───────────────────────────────────────────────────────────
 
+/**
+ * Removes a campaign from the registry (admin use).
+ */
+export function clearCampaign(campaignId: string, creatorAccount: string): void {
+  campaigns.delete(campaignId);
+  campaignsByCreator.delete(creatorAccount);
+}
+
 export function getRegistryStats() {
   return {
     totalCampaigns: campaigns.size,

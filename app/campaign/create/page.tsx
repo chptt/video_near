@@ -40,12 +40,12 @@ import {
 } from '@/lib/constants';
 
 const DURATION_OPTIONS = [
+  { label: '2 Min (Test)', value: 120 },
+  { label: '5 Min (Test)', value: 300 },
   { label: '1 Hour', value: 3600 },
   { label: '6 Hours', value: 21600 },
   { label: '24 Hours', value: 86400 },
-  { label: '3 Days', value: 259200 },
   { label: '7 Days', value: 604800 },
-  { label: '30 Days', value: 2592000 },
 ];
 
 const PENDING_CAMPAIGN_KEY = 'ps_pending_campaign';
@@ -72,7 +72,7 @@ function CreateCampaignInner() {
     description: '',
     videoUrl: '',
     priceNear: '1',
-    durationSeconds: DEFAULT_DURATION_SECONDS,
+    durationSeconds: 120, // 2 min test default
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});

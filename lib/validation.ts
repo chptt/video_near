@@ -77,7 +77,7 @@ export function validateCampaignInput(input: CampaignCreateInput): ValidationRes
   if (!input.durationSeconds || isNaN(input.durationSeconds)) {
     errors.durationSeconds = 'Access duration is required';
   } else if (input.durationSeconds < MIN_DURATION_SECONDS) {
-    errors.durationSeconds = `Minimum duration is ${MIN_DURATION_SECONDS / 3600} hour(s)`;
+    errors.durationSeconds = `Minimum duration is 2 minutes`;
   } else if (input.durationSeconds > MAX_DURATION_SECONDS) {
     errors.durationSeconds = `Maximum duration is ${MAX_DURATION_SECONDS / 86400} days`;
   }

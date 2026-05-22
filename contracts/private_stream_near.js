@@ -64,7 +64,7 @@ export class PrivateStreamNear {
     assert(campaignId && campaignId.length > 0,   "Campaign ID required");
     assert(metadataCid && metadataCid.length > 0, "Metadata CID required");
     assert(BigInt(priceYocto) > BigInt(0),         "Price must be > 0");
-    assert(Number(durationSeconds) >= 3600,        "Duration must be >= 1 hour");
+    assert(Number(durationSeconds) >= 120,        "Duration must be >= 2 minutes");
     assert(!this.campaigns.get(campaignId),        "Campaign ID already exists");
 
     const now = Math.floor(Number(near.blockTimestamp()) / 1_000_000_000);
@@ -209,5 +209,22 @@ export class PrivateStreamNear {
     assert(priceCents > 0, "Price must be positive");
     this.nearPriceCents = BigInt(priceCents);
     near.log(`NEAR price updated: ${priceCents} cents`);
+  }
+
+  // Removes a campaign and frees the creator's slot (admin/creator only)
+  @call({})
+  delete_campaign({ campaignId }) {
+    const caller = near.predecessorAccountId();
+    const campaign = this.campaigns.get(campaignId);
+    assert(campaign, "Campaign not found");
+    // Only the creator or the contract account can delete
+    assert(
+      caller === campaign.creator || caller === near.currentAccountId(),
+      "Only the campaign creator can delete their campaign"
+    );
+    this.campaigns.remove(campaignId);
+    this.creatorCampaigns.remove(campaign.creator);
+    near.log(`Campaign deleted: ${campaignId} by ${caller}`);
+    return { success: true };
   }
 }
