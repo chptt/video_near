@@ -55,11 +55,8 @@ export class PrivateStreamNear {
   create_campaign({ campaignId, metadataCid, priceYocto, durationSeconds }) {
     const creator = near.predecessorAccountId();
 
-    // One campaign per account
-    assert(
-      !this.creatorCampaigns.get(creator),
-      "You already own an active campaign. Each account can only create one campaign."
-    );
+    // Removed: one campaign per account limit
+    // Multiple campaigns per account are now allowed
 
     assert(campaignId && campaignId.length > 0,   "Campaign ID required");
     assert(metadataCid && metadataCid.length > 0, "Metadata CID required");

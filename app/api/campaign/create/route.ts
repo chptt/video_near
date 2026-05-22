@@ -23,7 +23,6 @@ import {
 import { normalizeYouTubeUrl } from '@/lib/youtube';
 import {
   registerCampaign,
-  creatorHasCampaign,
   Campaign,
 } from '@/lib/campaignRegistry';
 import {
@@ -49,17 +48,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid NEAR account ID' },
         { status: 400 }
-      );
-    }
-
-    // ── Enforce one campaign per account ──────────────────────────────────────
-    if (creatorHasCampaign(creatorAccount)) {
-      return NextResponse.json(
-        {
-          error: 'You already own an active campaign. Each NEAR account can only create one campaign.',
-          code: 'DUPLICATE_CAMPAIGN',
-        },
-        { status: 409 }
       );
     }
 

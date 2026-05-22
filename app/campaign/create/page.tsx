@@ -132,31 +132,9 @@ function CreateCampaignInner() {
   }, [accountId]);
 
   const checkExistingCampaign = async () => {
-    if (!accountId) return;
-    setCheckingCampaign(true);
-    try {
-      // Query the contract directly — the in-memory registry resets on cold start
-      const { callViewMethod } = await import('@/lib/near');
-      const onChainCampaign = await callViewMethod<{ id: string } | null>(
-        'get_creator_campaign',
-        { accountId }
-      );
-      setHasCampaign(!!onChainCampaign);
-    } catch {
-      // Fallback to registry if contract query fails
-      try {
-        const response = await fetch(`/api/campaign/list?all=true`);
-        const data = await response.json();
-        const existing = data.campaigns?.find(
-          (c: { creatorAccount: string }) => c.creatorAccount === accountId
-        );
-        setHasCampaign(!!existing);
-      } catch {
-        // Ignore
-      }
-    } finally {
-      setCheckingCampaign(false);
-    }
+    // Campaign limit removed — multiple campaigns per account allowed
+    setHasCampaign(false);
+    setCheckingCampaign(false);
   };
 
   const handleChange = (field: string, value: string | number) => {
@@ -204,12 +182,6 @@ function CreateCampaignInner() {
       const createData = await createResponse.json();
 
       if (!createResponse.ok) {
-        if (createData.code === 'DUPLICATE_CAMPAIGN') {
-          setHasCampaign(true);
-          toast.error('You already own an active campaign');
-          setStep('form');
-          return;
-        }
         throw new Error(createData.error || 'Failed to create campaign');
       }
 
