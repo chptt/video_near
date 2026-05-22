@@ -2,16 +2,13 @@
  * GET /api/campaign/[campaignId]/access
  *
  * Checks if a wallet has valid access to a campaign.
- * Returns access status and expiry without decrypting the video.
- *
- * Query params:
- * - accountId: NEAR account ID to check
+ * Queries the NEAR contract directly — no registry dependency.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCampaign, getAccessRecord } from '@/lib/campaignRegistry';
-import { checkAccess, formatRemainingTime } from '@/lib/access';
+import { formatRemainingTime } from '@/lib/access';
 import { isValidCampaignId, isValidNearAccountId } from '@/lib/validation';
+import { viewContract } from '@/lib/rpc';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,38 +25,62 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!isValidCampaignId(campaignId)) {
       return NextResponse.json({ error: 'Invalid campaign ID' }, { status: 400 });
     }
-
     if (!accountId || !isValidNearAccountId(accountId)) {
       return NextResponse.json({ error: 'Invalid account ID' }, { status: 400 });
     }
 
-    const campaign = getCampaign(campaignId);
-    if (!campaign) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+    // Query contract directly for campaign existence and access expiry
+    let campaignActive = true;
+    let campaignSoldOut = false;
+
+    try {
+      const onChain = await viewContract<{
+        active: boolean; soldOut: boolean;
+      } | null>('get_campaign', { campaignId });
+
+      if (!onChain) {
+        return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      }
+      campaignActive = onChain.active;
+      campaignSoldOut = onChain.soldOut;
+    } catch (e) {
+      console.warn('[Access] Could not verify campaign on chain:', e);
+      // Continue — don't block access check if campaign query fails
     }
 
-    // Check access record from registry
-    const accessRecord = getAccessRecord(accountId, campaignId);
-    const expiryTimestamp = accessRecord?.expiresAt || null;
+    // Get access expiry directly from contract
+    let expiresAt: number | null = null;
+    try {
+      const onChainExpiry = await viewContract<number>(
+        'get_access_expiry',
+        { accountId, campaignId }
+      );
+      if (onChainExpiry && Number(onChainExpiry) > 0) {
+        expiresAt = Number(onChainExpiry);
+      }
+    } catch (e) {
+      console.warn('[Access] Could not get access expiry from chain:', e);
+    }
 
-    const accessResult = checkAccess(accountId, campaignId, expiryTimestamp);
+    const now = Math.floor(Date.now() / 1000);
+    const hasAccess = expiresAt !== null && expiresAt > now;
+    const remainingSeconds = hasAccess ? expiresAt! - now : 0;
 
     return NextResponse.json({
-      hasAccess: accessResult.hasAccess,
-      expiresAt: accessResult.expiresAt || null,
-      remainingSeconds: accessResult.remainingSeconds || 0,
-      remainingFormatted: accessResult.expiresAt
-        ? formatRemainingTime(accessResult.expiresAt)
+      hasAccess,
+      expiresAt: expiresAt || null,
+      remainingSeconds,
+      remainingFormatted: expiresAt && hasAccess
+        ? formatRemainingTime(expiresAt)
         : null,
-      reason: accessResult.reason || null,
-      campaignActive: campaign.active,
-      campaignSoldOut: campaign.soldOut,
+      reason: !hasAccess
+        ? (expiresAt ? 'Access has expired' : 'No purchase record found')
+        : null,
+      campaignActive,
+      campaignSoldOut,
     });
   } catch (error) {
     console.error('[API] Access check error:', error);
-    return NextResponse.json(
-      { error: 'Failed to check access' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to check access' }, { status: 500 });
   }
 }

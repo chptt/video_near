@@ -150,14 +150,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('[API] Play endpoint error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
 
-    if (error instanceof Error && error.message.includes('auth tag')) {
+    if (msg.includes('auth tag') || msg.includes('Unsupported state')) {
       return NextResponse.json(
-        { error: 'Metadata integrity check failed.' },
+        { error: 'Metadata integrity check failed. The encryption key may have changed.' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ error: 'Failed to initialize player' }, { status: 500 });
+    if (msg.includes('ENCRYPTION_MASTER_KEY')) {
+      return NextResponse.json(
+        { error: 'Server encryption not configured.' },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: `Failed to initialize player: ${msg}` },
+      { status: 500 }
+    );
   }
 }
